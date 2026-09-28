@@ -1,24 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { api, type Atributos, type Clima, type Conjunto, type Modo, type Prenda, type Zona } from "@/lib/api";
+import { api, type Clima, type Conjunto, type Modo } from "@/lib/api";
 
 type Msg = { id: string; role: "bot" | "user"; node: React.ReactNode };
 
-type Stage =
-  | "menu"
-  | "upload_select"
-  | "upload_confirm"
-  | "reco_modo"
-  | "reco_ocasion"
-  | "reco_texto"
-  | "reco_loading"
-  | "reco_result";
+type Stage = "reco_modo" | "reco_ocasion" | "reco_texto" | "reco_loading" | "reco_result";
 
 const SpeechRecognitionCtor: typeof window.SpeechRecognition | undefined =
   window.SpeechRecognition ||
@@ -53,22 +41,12 @@ function Chips({ options, onPick }: { options: { label: string; value: string }[
 
 export function ChatApp() {
   const [messages, setMessages] = useState<Msg[]>([]);
-  const [stage, setStage] = useState<Stage>("menu");
+  const [stage, setStage] = useState<Stage>("reco_modo");
   const [texto, setTexto] = useState("");
   const [grabando, setGrabando] = useState(false);
-  const [zonas, setZonas] = useState<Zona[]>([]);
   const [busy, setBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // estado del flujo "subir prenda"
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [fotoUrl, setFotoUrl] = useState<string | null>(null);
-  const [atributos, setAtributos] = useState<Atributos>({ tipo: "", color: "", formalidad: "casual", abrigo: "medio" });
-  const [zonaActual, setZonaActual] = useState("");
-  const [tagUid, setTagUid] = useState("");
-
-  // estado del flujo "recomendación"
   const [modo, setModo] = useState<Modo | null>(null);
   const [ocasion, setOcasion] = useState<string | null>(null);
   const [sesionId, setSesionId] = useState<string | null>(null);
@@ -76,9 +54,7 @@ export function ChatApp() {
   const [clima, setClima] = useState<Clima | null>(null);
 
   useEffect(() => {
-    api.listarZonas().then(setZonas).catch(() => {});
-    bot("¡Hola! Soy tu asistente de armario. ¿Qué necesitas hoy?");
-    goMenu();
+    bot("¡Hola! Soy tu asistente de estilo. ¿Cuántas opciones quieres ver?");
   }, []);
 
   useEffect(() => {
@@ -95,113 +71,13 @@ export function ChatApp() {
     addMsg("user", text);
   }
 
-  function goMenu() {
-    setStage("menu");
-  }
-
-  // ---------- Ruteo de texto libre en el menú ----------
-  function interpretar(mensaje: string) {
-    const t = mensaje.toLowerCase();
-    if (/(subir|foto|prenda nueva|agregar)/.test(t)) return iniciarSubir();
-    if (/(inventario|ropa que tengo|qué tengo|que tengo)/.test(t)) return verInventario();
-    if (/(conjunto|recomien|qué me pongo|que me pongo|vestir)/.test(t)) return iniciarRecomendacion();
-    bot("No estoy seguro de qué necesitas. Elige una opción:");
-    setStage("menu");
-  }
-
-  function onEnviarComposer() {
-    const valor = texto.trim();
-    if (!valor) return;
-    user(valor);
-    setTexto("");
-    if (stage === "menu") return interpretar(valor);
-    if (stage === "reco_texto") return continuarRecomendacionConTexto(valor);
-    interpretar(valor);
-  }
-
-  function dictar() {
-    if (!SpeechRecognitionCtor) return;
-    const recognizer = new SpeechRecognitionCtor();
-    recognizer.lang = "es-CL";
-    recognizer.interimResults = false;
-    recognizer.addEventListener("result", (e) => {
-      setTexto((prev) => (prev ? `${prev} ${e.results[0][0].transcript}` : e.results[0][0].transcript));
-    });
-    recognizer.addEventListener("end", () => setGrabando(false));
-    setGrabando(true);
-    recognizer.start();
-  }
-
-  // ---------- Flujo: subir prenda ----------
-  function iniciarSubir() {
-    bot("Perfecto, elige una foto de la prenda y la analizo.");
-    setStage("upload_select");
-  }
-
-  async function analizarFoto() {
-    const archivo = fileInputRef.current?.files?.[0];
-    if (!archivo) {
-      bot("Primero selecciona una foto.");
-      return;
-    }
-    user("📷 (foto adjunta)");
-    setBusy(true);
-    bot("Analizando con IA...");
-    try {
-      const data = await api.subirFoto(archivo);
-      setToken(data.token);
-      setFotoUrl(data.foto_url);
-      setAtributos(data.atributos);
-      bot(
-        data.ia_disponible
-          ? "Esto identifiqué. Revisa y corrige si hace falta:"
-          : "La IA no está disponible ahora — completa los datos a mano:",
-      );
-      setStage("upload_confirm");
-    } catch (err) {
-      bot(`Error: ${(err as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function guardarPrenda() {
-    if (!token) return;
-    setBusy(true);
-    try {
-      await api.confirmarPrenda({ token, ...atributos, zona_actual: zonaActual || undefined, tag_uid: tagUid || undefined });
-      user("Guardar");
-      bot("Prenda guardada en tu inventario. ¿Algo más?");
-      setToken(null);
-      setFotoUrl(null);
-      setAtributos({ tipo: "", color: "", formalidad: "casual", abrigo: "medio" });
-      setZonaActual("");
-      setTagUid("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      goMenu();
-    } catch (err) {
-      bot(`Error: ${(err as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // ---------- Flujo: inventario ----------
-  async function verInventario() {
-    setBusy(true);
-    try {
-      const prendas = await api.listarPrendas();
-      addMsg("bot", <InventarioGrid prendas={prendas} />);
-      bot(prendas.length ? "¿Qué más necesitas?" : "Aún no tienes prendas — sube una foto cuando quieras.");
-    } finally {
-      setBusy(false);
-      goMenu();
-    }
-  }
-
-  // ---------- Flujo: recomendación ----------
-  function iniciarRecomendacion() {
-    bot("¿Cuántas opciones quieres ver?");
+  function reiniciar() {
+    setModo(null);
+    setOcasion(null);
+    setSesionId(null);
+    setConjuntos([]);
+    setClima(null);
+    bot("¿Cuántas opciones quieres ver esta vez?");
     setStage("reco_modo");
   }
 
@@ -224,13 +100,10 @@ export function ChatApp() {
     setStage("reco_texto");
   }
 
-  async function continuarRecomendacionConTexto(textoLibre: string | null) {
+  async function continuarConTexto(textoLibre: string | null) {
     if (textoLibre) user(textoLibre);
     else user("Omitir");
-    await pedirRecomendacion(textoLibre);
-  }
-
-  async function pedirRecomendacion(textoLibre: string | null) {
+    setTexto("");
     setStage("reco_loading");
     setBusy(true);
     bot("Pensando en tu conjunto...");
@@ -242,10 +115,29 @@ export function ChatApp() {
       setStage("reco_result");
     } catch (err) {
       bot(`Error: ${(err as Error).message}`);
-      goMenu();
+      reiniciar();
     } finally {
       setBusy(false);
     }
+  }
+
+  function onEnviarComposer() {
+    const valor = texto.trim();
+    if (!valor || stage !== "reco_texto") return;
+    continuarConTexto(valor);
+  }
+
+  function dictar() {
+    if (!SpeechRecognitionCtor) return;
+    const recognizer = new SpeechRecognitionCtor();
+    recognizer.lang = "es-CL";
+    recognizer.interimResults = false;
+    recognizer.addEventListener("result", (e) => {
+      setTexto((prev) => (prev ? `${prev} ${e.results[0][0].transcript}` : e.results[0][0].transcript));
+    });
+    recognizer.addEventListener("end", () => setGrabando(false));
+    setGrabando(true);
+    recognizer.start();
   }
 
   async function aceptar(idx: number) {
@@ -255,10 +147,9 @@ export function ChatApp() {
       const sesion = await api.obtenerSesion(sesionId);
       await api.aceptarConjunto(sesionId, sesion.conjuntos[idx].prenda_ids);
       user(`Confirmar conjunto ${idx + 1}`);
-      bot("¡Listo, que lo disfrutes! ¿Algo más?");
+      bot("¡Listo, que lo disfrutes! ¿Quieres pedir otra idea?");
       setConjuntos([]);
-      setSesionId(null);
-      goMenu();
+      reiniciar();
     } finally {
       setBusy(false);
     }
@@ -286,9 +177,9 @@ export function ChatApp() {
     try {
       const data = await api.rechazarConjunto(sesionId);
       if (data.estado === "modo_libre") {
-        bot("Ya van 2 rechazos. Pasamos a modo libre: revisa tu inventario y elige tú mismo.");
+        bot("Ya van 2 rechazos. Mejor revisa tu armario y elige tú mismo esta vez.");
         setConjuntos([]);
-        goMenu();
+        reiniciar();
         return;
       }
       setClima(data.clima ?? null);
@@ -299,8 +190,8 @@ export function ChatApp() {
   }
 
   return (
-    <div className="max-w-xl mx-auto flex flex-col h-screen p-4">
-      <h1 className="text-xl font-semibold mb-3">Armario Inteligente</h1>
+    <div className="max-w-xl mx-auto flex flex-col h-full p-4">
+      <h1 className="text-xl font-semibold mb-3">Pedir una idea</h1>
 
       <div className="flex-1 overflow-y-auto flex flex-col gap-3 pb-3">
         {messages.map((m) => (
@@ -308,96 +199,6 @@ export function ChatApp() {
             {m.node}
           </Bubble>
         ))}
-
-        {stage === "menu" && (
-          <Chips
-            options={[
-              { label: "📷 Subir prenda", value: "subir" },
-              { label: "👕 Ver inventario", value: "inventario" },
-              { label: "✨ Pedir conjunto", value: "recomendar" },
-            ]}
-            onPick={(v) => {
-              if (v === "subir") return iniciarSubir();
-              if (v === "inventario") return verInventario();
-              return iniciarRecomendacion();
-            }}
-          />
-        )}
-
-        {stage === "upload_select" && (
-          <Card>
-            <CardContent className="flex flex-col gap-2 pt-4">
-              <Input ref={fileInputRef} type="file" accept="image/*" capture="environment" />
-              <Button type="button" onClick={analizarFoto} disabled={busy}>
-                Analizar con IA
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {stage === "upload_confirm" && (
-          <Card>
-            <CardContent className="flex flex-col gap-3 pt-4">
-              {fotoUrl && <img src={fotoUrl} alt="preview" className="w-full max-h-56 object-cover rounded-lg" />}
-              <div className="flex flex-col gap-1.5">
-                <Label>Tipo</Label>
-                <Input value={atributos.tipo} onChange={(e) => setAtributos({ ...atributos, tipo: e.target.value })} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Color</Label>
-                <Input value={atributos.color} onChange={(e) => setAtributos({ ...atributos, color: e.target.value })} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Formalidad</Label>
-                <Select value={atributos.formalidad} onValueChange={(v) => setAtributos({ ...atributos, formalidad: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="casual">casual</SelectItem>
-                    <SelectItem value="formal">formal</SelectItem>
-                    <SelectItem value="deportivo">deportivo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Abrigo</Label>
-                <Select value={atributos.abrigo} onValueChange={(v) => setAtributos({ ...atributos, abrigo: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="liviano">liviano</SelectItem>
-                    <SelectItem value="medio">medio</SelectItem>
-                    <SelectItem value="abrigado">abrigado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Zona (opcional)</Label>
-                <Select value={zonaActual} onValueChange={setZonaActual}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="— sin asignar —" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {zonas.map((z) => (
-                      <SelectItem key={z.id} value={z.id}>
-                        {z.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Tag NFC (opcional)</Label>
-                <Input value={tagUid} onChange={(e) => setTagUid(e.target.value)} />
-              </div>
-              <Button type="button" onClick={guardarPrenda} disabled={busy}>
-                Guardar
-              </Button>
-            </CardContent>
-          </Card>
-        )}
 
         {stage === "reco_modo" && (
           <Chips
@@ -445,7 +246,7 @@ export function ChatApp() {
                 <Button type="button" onClick={onEnviarComposer} disabled={busy || !texto.trim()}>
                   Enviar
                 </Button>
-                <Button type="button" variant="outline" onClick={() => continuarRecomendacionConTexto(null)} disabled={busy}>
+                <Button type="button" variant="outline" onClick={() => continuarConTexto(null)} disabled={busy}>
                   Omitir
                 </Button>
               </div>
@@ -498,42 +299,6 @@ export function ChatApp() {
 
         <div ref={bottomRef} />
       </div>
-
-      {(stage === "menu" || stage === "reco_texto") && (
-        <div className="flex gap-2 pt-2 border-t border-[var(--border)]">
-          <Input
-            placeholder="Escribe aquí..."
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && onEnviarComposer()}
-          />
-          <Button type="button" onClick={onEnviarComposer} disabled={busy || !texto.trim()}>
-            Enviar
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function InventarioGrid({ prendas }: { prendas: Prenda[] }) {
-  if (!prendas.length) return <p>Todavía no hay prendas.</p>;
-  return (
-    <div className="grid grid-cols-2 gap-2 max-w-xs">
-      {prendas.map((p) => (
-        <Card key={p.id} className="overflow-hidden">
-          <img src={`/${p.foto_path}`} alt={p.tipo} className="w-full h-20 object-cover" />
-          <CardContent className="p-1.5 text-xs">
-            <strong>{p.tipo}</strong>
-            <br />
-            {p.color}
-            <br />
-            <Badge variant={p.estado === "disponible" ? "olive" : "yellow"} className="mt-1">
-              {p.estado}
-            </Badge>
-          </CardContent>
-        </Card>
-      ))}
     </div>
   );
 }
