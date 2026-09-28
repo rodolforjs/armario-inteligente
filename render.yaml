@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: armario-inteligente
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+    disk:
+      name: armario-datos
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1

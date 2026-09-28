@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Armario Inteligente</title>
+<link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+<header>
+  <h1>Armario Inteligente</h1>
+  <nav id="tabs">
+    <button data-tab="subir" class="tab-btn active">Subir prenda</button>
+    <button data-tab="inventario" class="tab-btn">Inventario</button>
+    <button data-tab="recomendar" class="tab-btn">Pedir conjunto</button>
+  </nav>
+</header>
+
+<main>
+  <!-- SUBIR PRENDA -->
+  <section id="tab-subir" class="tab-panel active">
+    <h2>Subir foto de una prenda</h2>
+    <input type="file" id="input-foto" accept="image/*" capture="environment" />
+    <button id="btn-analizar">Analizar con IA</button>
+    <p id="subir-estado" class="estado"></p>
+
+    <div id="preview-atributos" class="card hidden">
+      <img id="preview-img" alt="preview" />
+      <form id="form-confirmar">
+        <label>Tipo <input name="tipo" required /></label>
+        <label>Color <input name="color" required /></label>
+        <label>Formalidad
+          <select name="formalidad">
+            <option value="casual">casual</option>
+            <option value="formal">formal</option>
+            <option value="deportivo">deportivo</option>
+          </select>
+        </label>
+        <label>Abrigo
+          <select name="abrigo">
+            <option value="liviano">liviano</option>
+            <option value="medio">medio</option>
+            <option value="abrigado">abrigado</option>
+          </select>
+        </label>
+        <label>Zona (opcional)
+          <select name="zona_actual" id="select-zona"></select>
+        </label>
+        <label>Tag NFC (opcional) <input name="tag_uid" /></label>
+        <button type="submit">Confirmar y guardar</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- INVENTARIO -->
+  <section id="tab-inventario" class="tab-panel">
+    <h2>Inventario</h2>
+    <button id="btn-refrescar-inventario">Refrescar</button>
+    <div id="grid-inventario" class="grid"></div>
+  </section>
+
+  <!-- RECOMENDAR -->
+  <section id="tab-recomendar" class="tab-panel">
+    <h2>Pedir un conjunto</h2>
+    <form id="form-recomendar">
+      <label>Modo
+        <select name="modo">
+          <option value="exploratorio">Exploratorio (3 opciones)</option>
+          <option value="pocas_opciones">Pocas opciones (2)</option>
+          <option value="preciso">Preciso (1 directo)</option>
+        </select>
+      </label>
+      <label>Ocasión (opcional)
+        <select name="ocasion">
+          <option value="">— sin especificar —</option>
+          <option value="casual">casual</option>
+          <option value="formal">formal</option>
+          <option value="deportivo">deportivo</option>
+        </select>
+      </label>
+      <label>Cuéntame la situación (opcional)
+        <div class="voz-row">
+          <textarea name="texto_libre" id="texto-libre" placeholder="ej. voy a una reunión importante pero quiero estar cómodo"></textarea>
+          <button type="button" id="btn-voz" title="Dictar por voz">🎤</button>
+        </div>
+      </label>
+      <button type="submit">Recomendarme algo</button>
+    </form>
+
+    <p id="recomendar-estado" class="estado"></p>
+    <div id="clima-info"></div>
+    <div id="conjuntos"></div>
+    <button id="btn-otras-opciones" class="hidden">Pedir otras opciones</button>
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
