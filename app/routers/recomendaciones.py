@@ -16,7 +16,7 @@ router = APIRouter(prefix="/recomendaciones", tags=["recomendaciones"])
 
 
 class SolicitudRecomendacion(BaseModel):
-    modo: str  # "exploratorio" | "pocas_opciones" | "preciso"
+    modo: str = "exploratorio"  # "exploratorio" | "pocas_opciones" | "preciso"
     ocasion: str | None = None
     texto_libre: str | None = None
 
