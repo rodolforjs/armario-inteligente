@@ -6,14 +6,12 @@ from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
-from app.db import DATA_DIR, init_db
+from app.db import init_db
 from app.routers import esp32, estado, prendas, recomendaciones, zonas
 
 app = FastAPI(title="Armario Inteligente")
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-UPLOADS_DIR = DATA_DIR / "uploads"
-UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 init_db()
 
@@ -23,7 +21,6 @@ app.include_router(recomendaciones.router)
 app.include_router(esp32.router)
 app.include_router(estado.router)
 
-app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="frontend")
 

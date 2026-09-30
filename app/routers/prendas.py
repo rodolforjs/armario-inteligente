@@ -6,16 +6,13 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from app.db import DATA_DIR, db_session
-from app.services import vision
+from app.db import db_session
+from app.services import storage, vision
 from app.services.eventos import registrar_evento
 
 router = APIRouter(prefix="/prendas", tags=["prendas"])
 
-UPLOAD_DIR = DATA_DIR / "uploads"
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-# fotos pendientes de confirmación: token -> {ruta, atributos}
+# fotos pendientes de confirmación: token -> {foto_url, atributos}
 _PENDIENTES: dict[str, dict] = {}
 
 
@@ -29,9 +26,10 @@ async def subir_foto(archivo: UploadFile = File(...)):
         raise HTTPException(400, "La imagen es muy pesada (máx 8MB)")
 
     extension = Path(archivo.filename or "foto.jpg").suffix or ".jpg"
-    nombre_archivo = f"{uuid.uuid4().hex}{extension}"
-    ruta = UPLOAD_DIR / nombre_archivo
-    ruta.write_bytes(contenido)
+    try:
+        foto_url = storage.subir_foto(contenido, archivo.content_type, extension)
+    except Exception as exc:
+        raise HTTPException(502, f"No se pudo guardar la imagen: {exc}") from exc
 
     ia_disponible = True
     try:
@@ -41,7 +39,7 @@ async def subir_foto(archivo: UploadFile = File(...)):
         atributos = {"tipo": "", "color": "", "formalidad": "casual", "abrigo": "medio"}
 
     token = uuid.uuid4().hex
-    _PENDIENTES[token] = {"foto_path": f"uploads/{nombre_archivo}", "atributos": atributos}
+    _PENDIENTES[token] = {"foto_url": foto_url, "atributos": atributos}
 
     with db_session() as conn:
         registrar_evento(conn, "foto_subida", payload={"token": token, "atributos": atributos, "ia_disponible": ia_disponible})
@@ -50,7 +48,7 @@ async def subir_foto(archivo: UploadFile = File(...)):
         "token": token,
         "atributos": atributos,
         "ia_disponible": ia_disponible,
-        "foto_url": f"/{_PENDIENTES[token]['foto_path']}",
+        "foto_url": foto_url,
     }
 
 
@@ -72,13 +70,13 @@ def confirmar_prenda(
     with db_session() as conn:
         cursor = conn.execute(
             """INSERT INTO prenda (foto_path, tipo, color, formalidad, abrigo, tag_uid, zona_actual, estado, creado_en)
-               VALUES (?, ?, ?, ?, ?, ?, ?, 'disponible', ?)""",
-            (pendiente["foto_path"], tipo, color, formalidad, abrigo, tag_uid, zona_actual, ahora),
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'disponible', ?) RETURNING id""",
+            (pendiente["foto_url"], tipo, color, formalidad, abrigo, tag_uid, zona_actual, ahora),
         )
-        prenda_id = cursor.lastrowid
+        prenda_id = cursor.fetchone()["id"]
         registrar_evento(conn, "prenda_creada", prenda_id=prenda_id, payload={"tipo": tipo, "color": color})
 
-    return {"id": prenda_id, "foto_path": pendiente["foto_path"]}
+    return {"id": prenda_id, "foto_path": pendiente["foto_url"]}
 
 
 @router.get("")

@@ -8,7 +8,9 @@ services:
     envVars:
       - key: GEMINI_API_KEY
         sync: false
-    disk:
-      name: armario-datos
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false

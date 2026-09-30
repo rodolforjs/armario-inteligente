@@ -5,3 +5,5 @@ google-genai
 httpx
 jinja2
 python-dotenv
+psycopg[binary]
+supabase

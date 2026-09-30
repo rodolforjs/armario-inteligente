@@ -1,57 +1,60 @@
 import os
-import sqlite3
 from contextlib import contextmanager
-from pathlib import Path
 
-DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parent.parent))
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-DB_PATH = DATA_DIR / "armario.db"
+import psycopg
+from psycopg.rows import dict_row
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS zona (
-    id TEXT PRIMARY KEY,
-    nombre TEXT NOT NULL,
-    led_id TEXT
-);
+DATABASE_URL = os.environ["DATABASE_URL"]
 
-CREATE TABLE IF NOT EXISTS prenda (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    foto_path TEXT NOT NULL,
-    tipo TEXT NOT NULL,
-    color TEXT NOT NULL,
-    formalidad TEXT NOT NULL,
-    abrigo TEXT NOT NULL,
-    tag_uid TEXT UNIQUE,
-    zona_actual TEXT,
-    estado TEXT NOT NULL DEFAULT 'disponible',
-    veces_usada INTEGER NOT NULL DEFAULT 0,
-    fecha_ultimo_uso TEXT,
-    creado_en TEXT NOT NULL,
-    FOREIGN KEY (zona_actual) REFERENCES zona(id)
-);
-
-CREATE TABLE IF NOT EXISTS sesion_recomendacion (
-    id TEXT PRIMARY KEY,
-    ocasion TEXT,
-    texto_libre TEXT,
-    modo TEXT NOT NULL,
-    clima_json TEXT,
-    conjuntos_json TEXT,
-    rechazos_count INTEGER NOT NULL DEFAULT 0,
-    estado TEXT NOT NULL DEFAULT 'en_curso',
-    creado_en TEXT NOT NULL,
-    confirmada_en TEXT
-);
-
-CREATE TABLE IF NOT EXISTS evento_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp TEXT NOT NULL,
-    tipo TEXT NOT NULL,
-    sesion_id TEXT,
-    prenda_id INTEGER,
-    payload_json TEXT
-);
-"""
+SCHEMA_STATEMENTS = [
+    """
+    CREATE TABLE IF NOT EXISTS zona (
+        id TEXT PRIMARY KEY,
+        nombre TEXT NOT NULL,
+        led_id TEXT
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS prenda (
+        id SERIAL PRIMARY KEY,
+        foto_path TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        color TEXT NOT NULL,
+        formalidad TEXT NOT NULL,
+        abrigo TEXT NOT NULL,
+        tag_uid TEXT UNIQUE,
+        zona_actual TEXT REFERENCES zona(id),
+        estado TEXT NOT NULL DEFAULT 'disponible',
+        veces_usada INTEGER NOT NULL DEFAULT 0,
+        fecha_ultimo_uso TEXT,
+        creado_en TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS sesion_recomendacion (
+        id TEXT PRIMARY KEY,
+        ocasion TEXT,
+        texto_libre TEXT,
+        modo TEXT NOT NULL,
+        clima_json TEXT,
+        conjuntos_json TEXT,
+        rechazos_count INTEGER NOT NULL DEFAULT 0,
+        estado TEXT NOT NULL DEFAULT 'en_curso',
+        creado_en TEXT NOT NULL,
+        confirmada_en TEXT
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS evento_log (
+        id SERIAL PRIMARY KEY,
+        timestamp TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        sesion_id TEXT,
+        prenda_id INTEGER,
+        payload_json TEXT
+    )
+    """,
+]
 
 DEFAULT_ZONAS = [
     ("zona_1", "Colgador superior", "led_1"),
@@ -60,11 +63,32 @@ DEFAULT_ZONAS = [
 ]
 
 
-def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+class Conn:
+    """Pequeño wrapper para poder reusar el mismo estilo sqlite3 (placeholders '?', filas tipo dict) sobre psycopg."""
+
+    def __init__(self, pg_conn: psycopg.Connection):
+        self._conn = pg_conn
+
+    def execute(self, query: str, params=()):
+        cur = self._conn.cursor()
+        cur.execute(query.replace("?", "%s"), params)
+        return cur
+
+    def executemany(self, query: str, seq_of_params):
+        cur = self._conn.cursor()
+        cur.executemany(query.replace("?", "%s"), seq_of_params)
+        return cur
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        self._conn.close()
+
+
+def get_connection() -> Conn:
+    pg_conn = psycopg.connect(DATABASE_URL, row_factory=dict_row, autocommit=False)
+    return Conn(pg_conn)
 
 
 @contextmanager
@@ -79,7 +103,8 @@ def db_session():
 
 def init_db():
     with db_session() as conn:
-        conn.executescript(SCHEMA)
+        for statement in SCHEMA_STATEMENTS:
+            conn.execute(statement)
         existing = conn.execute("SELECT COUNT(*) AS c FROM zona").fetchone()["c"]
         if existing == 0:
             conn.executemany(

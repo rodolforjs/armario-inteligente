@@ -247,7 +247,7 @@ export function Armario() {
           <div className="grid grid-cols-3 gap-2">
             {prendas.map((p) => (
               <Card key={p.id} className="overflow-hidden">
-                <img src={`/${p.foto_path}`} alt={p.tipo} className="w-full h-24 object-cover" />
+                <img src={p.foto_path} alt={p.tipo} className="w-full h-24 object-cover" />
                 <CardContent className="p-1.5 text-xs">
                   <strong>{p.tipo}</strong>
                   <br />
@@ -278,7 +278,7 @@ export function Armario() {
             <CardContent className="flex flex-col gap-3 pt-4">
               <div className="flex gap-2 overflow-x-auto">
                 {c.piezas.map((p) => (
-                  <img key={p.id} src={`/${p.foto_path}`} alt={p.tipo} className="w-20 h-20 object-cover rounded-lg" />
+                  <img key={p.id} src={p.foto_path} alt={p.tipo} className="w-20 h-20 object-cover rounded-lg" />
                 ))}
               </div>
               <p className="italic text-sm text-muted-foreground">{c.razon}</p>
