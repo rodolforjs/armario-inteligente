@@ -1,15 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
-export function CameraCapture({
-  onCapture,
-  onCancel,
-  onUnavailable,
-}: {
-  onCapture: (file: File) => void;
-  onCancel: () => void;
-  onUnavailable: () => void;
-}) {
+export type CameraCaptureHandle = {
+  capturar: () => void;
+  usarFoto: () => void;
+  repetir: () => void;
+};
+
+export const CameraCapture = forwardRef<
+  CameraCaptureHandle,
+  {
+    onCapture: (file: File) => void;
+    onCancel: () => void;
+    onUnavailable: () => void;
+    onEstadoFoto?: (hayFoto: boolean) => void;
+  }
+>(function CameraCapture({ onCapture, onCancel, onUnavailable, onEstadoFoto }, ref) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -48,10 +54,12 @@ export function CameraCapture({
     canvas.height = video.videoHeight;
     canvas.getContext("2d")?.drawImage(video, 0, 0);
     setFoto(canvas.toDataURL("image/jpeg", 0.9));
+    onEstadoFoto?.(true);
   }
 
   function repetir() {
     setFoto(null);
+    onEstadoFoto?.(false);
   }
 
   function usarFoto() {
@@ -66,6 +74,8 @@ export function CameraCapture({
       0.9,
     );
   }
+
+  useImperativeHandle(ref, () => ({ capturar, usarFoto, repetir }));
 
   return (
     <div className="flex flex-col gap-3">
@@ -97,4 +107,4 @@ export function CameraCapture({
       </div>
     </div>
   );
-}
+});

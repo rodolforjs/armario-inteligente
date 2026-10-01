@@ -1,0 +1,111 @@
+from __future__ import annotations
+
+import json
+
+from google.genai import types
+
+from app.services.vision import get_client
+
+ACCIONES = [
+    "abrir_camara",
+    "capturar_foto",
+    "usar_foto",
+    "repetir_foto",
+    "cancelar",
+    "guardar_prenda",
+    "ver_combinaciones",
+    "confirmar_conjunto",
+    "cambiar_prenda",
+    "otras_opciones",
+    "desconocido",
+]
+
+SCHEMA = {
+    "type": "object",
+    "properties": {
+        "accion": {"type": "string", "enum": ACCIONES},
+        "parametro": {"type": "string"},
+        "respuesta_hablada": {"type": "string"},
+    },
+    "required": ["accion", "respuesta_hablada"],
+}
+
+PROMPT_BASE = """Eres el cerebro de un asistente de voz para un armario inteligente. El usuario te habla
+y tú decides qué acción debe ejecutar la app, y qué le respondes en voz alta (breve, cercano, en español).
+
+Acciones posibles, según la etapa actual de la app (etapa en el contexto):
+- abrir_camara: el usuario quiere sacar una foto de una prenda nueva (solo tiene sentido en etapa "inicio").
+- capturar_foto: tomar la foto ahora mismo (solo con etapa "camara_abierta").
+- usar_foto: confirmar que la foto recién capturada sirve y seguir (solo con etapa "foto_capturada").
+- repetir_foto: la foto no sirvió, tomar otra (solo con etapa "foto_capturada").
+- cancelar: cancelar el proceso de subir una prenda y volver al inicio.
+- guardar_prenda: guardar la prenda en el armario con los atributos que ya detectó la IA (solo con etapa "confirmando_atributos").
+- ver_combinaciones: pedir sugerencias de qué ponerse (etapa "inicio").
+- confirmar_conjunto: aceptar el conjunto de ropa que se le mostró (etapa "mostrando_combinaciones").
+- cambiar_prenda: pide cambiar una pieza específica del conjunto; en "parametro" pon el tipo de prenda
+  mencionado (ej. "camisa"), basándote en las piezas listadas en el contexto.
+- otras_opciones: pedir otro conjunto distinto (etapa "mostrando_combinaciones").
+- desconocido: si lo que dijo no tiene sentido para la etapa actual, o no entendiste.
+
+Si la acción no es válida para la etapa actual, responde "desconocido" y explica brevemente qué puede hacer ahora.
+Responde solo JSON, sin explicaciones fuera del JSON."""
+
+
+def _interpretar_con_reglas(transcripcion: str, contexto: dict) -> dict:
+    """Respaldo sin IA por si Gemini no responde: cubre los comandos más comunes por etapa."""
+    t = transcripcion.lower()
+    etapa = contexto.get("etapa", "inicio")
+
+    def resultado(accion: str, hablada: str, parametro: str = "") -> dict:
+        return {"accion": accion, "parametro": parametro, "respuesta_hablada": hablada}
+
+    if etapa == "inicio":
+        if any(p in t for p in ["foto", "subir", "escane", "agregar prenda"]):
+            return resultado("abrir_camara", "Abro la cámara.")
+        if any(p in t for p in ["combina", "ponerme", "vestir", "recomien", "sugerencia"]):
+            return resultado("ver_combinaciones", "Buscando una combinación para ti.")
+    elif etapa == "camara_abierta":
+        if any(p in t for p in ["captura", "toma", "saca", "ahora"]):
+            return resultado("capturar_foto", "Capturando.")
+        if "cancel" in t:
+            return resultado("cancelar", "Cancelado.")
+    elif etapa == "foto_capturada":
+        if any(p in t for p in ["usar", "sirve", "guard", "sí", "listo", "buena"]):
+            return resultado("usar_foto", "Perfecto, sigo con esa foto.")
+        if any(p in t for p in ["repet", "otra", "de nuevo", "mala"]):
+            return resultado("repetir_foto", "Tomemos otra.")
+    elif etapa == "confirmando_atributos":
+        if any(p in t for p in ["guard", "sí", "listo", "confirma"]):
+            return resultado("guardar_prenda", "Guardado en tu armario.")
+        if "cancel" in t:
+            return resultado("cancelar", "Cancelado.")
+    elif etapa == "mostrando_combinaciones":
+        if any(p in t for p in ["confirma", "me gusta", "ese", "listo", "sí"]):
+            return resultado("confirmar_conjunto", "Dale, confirmado.")
+        if any(p in t for p in ["otra", "otras opciones", "no me gusta", "distinto"]):
+            return resultado("otras_opciones", "Buscando otra opción.")
+        if "cambia" in t:
+            piezas = contexto.get("piezas_conjunto") or []
+            for tipo in piezas:
+                if tipo.lower() in t:
+                    return resultado("cambiar_prenda", f"Cambiando {tipo}.", parametro=tipo)
+
+    return resultado("desconocido", "No te entendí bien. ¿Puedes repetirlo?")
+
+
+def interpretar_comando(transcripcion: str, contexto: dict) -> dict:
+    prompt = f"{PROMPT_BASE}\n\nContexto actual: {json.dumps(contexto, ensure_ascii=False)}\nEl usuario dijo: \"{transcripcion}\""
+
+    try:
+        client = get_client()
+        response = client.models.generate_content(
+            model="gemini-flash-latest",
+            contents=[prompt],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=SCHEMA,
+            ),
+        )
+        return json.loads(response.text)
+    except Exception:
+        return _interpretar_con_reglas(transcripcion, contexto)

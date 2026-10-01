@@ -40,6 +40,21 @@ export type Clima = {
 
 export type Modo = "exploratorio" | "pocas_opciones" | "preciso";
 
+export type AccionVoz =
+  | "abrir_camara"
+  | "capturar_foto"
+  | "usar_foto"
+  | "repetir_foto"
+  | "cancelar"
+  | "guardar_prenda"
+  | "ver_combinaciones"
+  | "confirmar_conjunto"
+  | "cambiar_prenda"
+  | "otras_opciones"
+  | "desconocido";
+
+export type RespuestaVoz = { accion: AccionVoz; parametro?: string; respuesta_hablada: string };
+
 async function parseOrThrow(res: Response) {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -113,4 +128,11 @@ export const api = {
       clima?: Clima;
       conjuntos?: Conjunto[];
     }>,
+
+  comandoVoz: (texto: string, contexto: Record<string, unknown>) =>
+    fetch("/asistente/comando", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto, contexto }),
+    }).then(parseOrThrow) as Promise<RespuestaVoz>,
 };

@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 from app.db import init_db
-from app.routers import esp32, estado, prendas, recomendaciones, zonas
+from app.routers import asistente, esp32, estado, prendas, recomendaciones, zonas
 
 app = FastAPI(title="Armario Inteligente")
 
@@ -15,6 +15,7 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 init_db()
 
+app.include_router(asistente.router)
 app.include_router(prendas.router)
 app.include_router(zonas.router)
 app.include_router(recomendaciones.router)

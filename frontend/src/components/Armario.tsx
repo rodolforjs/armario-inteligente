@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CameraCapture } from "@/components/CameraCapture";
-import { api, type Atributos, type Clima, type Conjunto, type Prenda } from "@/lib/api";
+import { CameraCapture, type CameraCaptureHandle } from "@/components/CameraCapture";
+import { api, type Atributos, type Clima, type Conjunto, type Modo, type Prenda } from "@/lib/api";
+import { escuchar, hablar, vozDisponible } from "@/lib/voz";
 
 type ModoCaptura = "camara" | "archivo" | null;
 
@@ -16,15 +17,21 @@ export function Armario() {
   const [mensaje, setMensaje] = useState("");
 
   const [modoCaptura, setModoCaptura] = useState<ModoCaptura>(null);
+  const [fotoListaParaUsar, setFotoListaParaUsar] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
   const [atributos, setAtributos] = useState<Atributos>({ tipo: "", color: "", formalidad: "casual", abrigo: "medio" });
+  const cameraRef = useRef<CameraCaptureHandle>(null);
 
   const [sesionId, setSesionId] = useState<string | null>(null);
   const [conjuntos, setConjuntos] = useState<Conjunto[]>([]);
   const [clima, setClima] = useState<Clima | null>(null);
   const [buscandoCombinaciones, setBuscandoCombinaciones] = useState(false);
   const [avisoCombinaciones, setAvisoCombinaciones] = useState("");
+
+  const [escuchando, setEscuchando] = useState(false);
+  const [transcripcion, setTranscripcion] = useState("");
+  const [respuestaAsistente, setRespuestaAsistente] = useState("");
 
   function cargar() {
     setCargando(true);
@@ -38,6 +45,7 @@ export function Armario() {
 
   function cerrarCaptura() {
     setModoCaptura(null);
+    setFotoListaParaUsar(false);
     setToken(null);
     setFotoUrl(null);
     setAtributos({ tipo: "", color: "", formalidad: "casual", abrigo: "medio" });
@@ -64,8 +72,8 @@ export function Armario() {
     }
   }
 
-  async function guardarPrenda(e: React.FormEvent) {
-    e.preventDefault();
+  async function guardarPrenda(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!token) return;
     setCargando(true);
     try {
@@ -79,17 +87,19 @@ export function Armario() {
     }
   }
 
-  async function verCombinaciones() {
+  async function verCombinaciones(modo: Modo = "exploratorio") {
     setBuscandoCombinaciones(true);
     setAvisoCombinaciones("");
     setConjuntos([]);
     try {
-      const data = await api.pedirRecomendacion({ modo: "exploratorio", ocasion: null, texto_libre: null });
+      const data = await api.pedirRecomendacion({ modo, ocasion: null, texto_libre: null });
       setSesionId(data.sesion_id);
       setClima(data.clima);
       setConjuntos(data.conjuntos);
+      return data.conjuntos;
     } catch (err) {
       setAvisoCombinaciones(`Error: ${(err as Error).message}`);
+      return [];
     } finally {
       setBuscandoCombinaciones(false);
     }
@@ -141,9 +151,111 @@ export function Armario() {
     }
   }
 
+  // ---------- Asistente de voz ----------
+  function etapaActual(): string {
+    if (token) return "confirmando_atributos";
+    if (modoCaptura === "camara" && fotoListaParaUsar) return "foto_capturada";
+    if (modoCaptura === "camara" || modoCaptura === "archivo") return "camara_abierta";
+    if (conjuntos.length > 0) return "mostrando_combinaciones";
+    return "inicio";
+  }
+
+  function construirContexto() {
+    return {
+      etapa: etapaActual(),
+      atributos_detectados: token ? atributos : undefined,
+      piezas_conjunto: conjuntos[0]?.piezas.map((p) => p.tipo) ?? [],
+      cantidad_prendas_en_armario: prendas.length,
+    };
+  }
+
+  async function manejarComandoVoz(texto: string) {
+    setTranscripcion(texto);
+    try {
+      const resp = await api.comandoVoz(texto, construirContexto());
+      setRespuestaAsistente(resp.respuesta_hablada);
+      hablar(resp.respuesta_hablada);
+
+      switch (resp.accion) {
+        case "abrir_camara":
+          setModoCaptura("camara");
+          break;
+        case "capturar_foto":
+          cameraRef.current?.capturar();
+          break;
+        case "usar_foto":
+          cameraRef.current?.usarFoto();
+          break;
+        case "repetir_foto":
+          cameraRef.current?.repetir();
+          break;
+        case "cancelar":
+          cerrarCaptura();
+          setConjuntos([]);
+          setSesionId(null);
+          break;
+        case "guardar_prenda":
+          guardarPrenda();
+          break;
+        case "ver_combinaciones":
+          verCombinaciones("preciso");
+          break;
+        case "confirmar_conjunto":
+          aceptar(0);
+          break;
+        case "cambiar_prenda": {
+          const tipoBuscado = (resp.parametro || "").toLowerCase();
+          const pieza = conjuntos[0]?.piezas.find((p) => p.tipo.toLowerCase().includes(tipoBuscado));
+          if (pieza) cambiarPrenda(0, pieza.id);
+          break;
+        }
+        case "otras_opciones":
+          otrasOpciones();
+          break;
+      }
+    } catch (err) {
+      setRespuestaAsistente(`Error: ${(err as Error).message}`);
+    }
+  }
+
+  function alMicrofono() {
+    if (escuchando) return;
+    setEscuchando(true);
+    setTranscripcion("");
+    escuchar(
+      (texto) => manejarComandoVoz(texto),
+      () => setEscuchando(false),
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto p-4 flex flex-col gap-5">
       <h1 className="text-xl font-semibold">Armario Inteligente</h1>
+
+      {/* ---------- Asistente de voz ---------- */}
+      <Card>
+        <CardContent className="flex flex-col items-center gap-2 pt-4">
+          <Button
+            type="button"
+            size="lg"
+            onClick={alMicrofono}
+            disabled={!vozDisponible || escuchando}
+            variant={escuchando ? "danger" : "default"}
+            className="rounded-full w-20 h-20 text-3xl"
+          >
+            🎙️
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            {!vozDisponible
+              ? "Tu navegador no soporta voz — usa los botones de abajo."
+              : escuchando
+                ? "Escuchando..."
+                : "Toca y habla"}
+          </p>
+          {transcripcion && <p className="text-sm">Tú: "{transcripcion}"</p>}
+          {respuestaAsistente && <p className="text-sm text-muted-foreground italic">Asistente: {respuestaAsistente}</p>}
+        </CardContent>
+      </Card>
 
       {/* ---------- Captura ---------- */}
       {modoCaptura === null && !token && (
@@ -154,9 +266,11 @@ export function Armario() {
 
       {modoCaptura === "camara" && !token && (
         <CameraCapture
+          ref={cameraRef}
           onCapture={procesarFoto}
           onCancel={cerrarCaptura}
           onUnavailable={() => setModoCaptura("archivo")}
+          onEstadoFoto={setFotoListaParaUsar}
         />
       )}
 
@@ -263,7 +377,12 @@ export function Armario() {
 
       {/* ---------- Combinaciones ---------- */}
       <div className="flex flex-col gap-3">
-        <Button type="button" size="lg" onClick={verCombinaciones} disabled={buscandoCombinaciones || prendas.length === 0}>
+        <Button
+          type="button"
+          size="lg"
+          onClick={() => verCombinaciones("exploratorio")}
+          disabled={buscandoCombinaciones || prendas.length === 0}
+        >
           ✨ Ver combinaciones
         </Button>
         {avisoCombinaciones && <p className="text-sm text-muted-foreground">{avisoCombinaciones}</p>}
