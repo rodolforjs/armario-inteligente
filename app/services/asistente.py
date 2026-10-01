@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import json
 
-from google.genai import types
-
-from app.services.vision import get_client
+from app.services.ai_client import MODEL, get_client
 
 ACCIONES = [
     "abrir_camara",
@@ -21,13 +19,18 @@ ACCIONES = [
 ]
 
 SCHEMA = {
-    "type": "object",
-    "properties": {
-        "accion": {"type": "string", "enum": ACCIONES},
-        "parametro": {"type": "string"},
-        "respuesta_hablada": {"type": "string"},
+    "name": "comando_voz",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "accion": {"type": "string", "enum": ACCIONES},
+            "parametro": {"type": ["string", "null"]},
+            "respuesta_hablada": {"type": "string"},
+        },
+        "required": ["accion", "parametro", "respuesta_hablada"],
+        "additionalProperties": False,
     },
-    "required": ["accion", "respuesta_hablada"],
 }
 
 PROMPT_BASE = """Eres el cerebro de un asistente de voz para un armario inteligente. El usuario te habla
@@ -98,14 +101,11 @@ def interpretar_comando(transcripcion: str, contexto: dict) -> dict:
 
     try:
         client = get_client()
-        response = client.models.generate_content(
-            model="gemini-flash-latest",
-            contents=[prompt],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=SCHEMA,
-            ),
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_schema", "json_schema": SCHEMA},
         )
-        return json.loads(response.text)
+        return json.loads(response.choices[0].message.content)
     except Exception:
         return _interpretar_con_reglas(transcripcion, contexto)

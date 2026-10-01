@@ -5,10 +5,8 @@ import unicodedata
 from datetime import datetime, timezone
 from itertools import product
 
-from google.genai import types
-
 from app.services import clima as clima_service
-from app.services.vision import get_client
+from app.services.ai_client import MODEL, get_client
 
 MODOS = {
     "exploratorio": 3,
@@ -132,15 +130,24 @@ def _generar_razones(conjuntos: list[dict], clima: dict, ocasion: str | None, te
     ]
     try:
         client = get_client()
-        response = client.models.generate_content(
-            model="gemini-flash-latest",
-            contents=[prompt],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema={"type": "array", "items": {"type": "string"}},
-            ),
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "razones_conjuntos",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "properties": {"razones": {"type": "array", "items": {"type": "string"}}},
+                        "required": ["razones"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
         )
-        razones = json.loads(response.text)
+        razones = json.loads(response.choices[0].message.content)["razones"]
         if isinstance(razones, list) and len(razones) == len(conjuntos):
             return razones
     except Exception:

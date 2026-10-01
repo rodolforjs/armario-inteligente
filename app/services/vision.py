@@ -1,22 +1,22 @@
-from __future__ import annotations
-
+import base64
 import json
-import os
 
-from google import genai
-from google.genai import types
-
-_client: genai.Client | None = None
+from app.services.ai_client import MODEL, get_client
 
 ATRIBUTOS_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "tipo": {"type": "string", "description": "ej. camisa, polera, pantalón, chaqueta, vestido, falda, polerón"},
-        "color": {"type": "string", "description": "color principal de la prenda"},
-        "formalidad": {"type": "string", "enum": ["casual", "formal", "deportivo"]},
-        "abrigo": {"type": "string", "enum": ["liviano", "medio", "abrigado"]},
+    "name": "atributos_prenda",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "tipo": {"type": "string", "description": "ej. camisa, polera, pantalón, chaqueta, vestido, falda, polerón"},
+            "color": {"type": "string", "description": "color principal de la prenda"},
+            "formalidad": {"type": "string", "enum": ["casual", "formal", "deportivo"]},
+            "abrigo": {"type": "string", "enum": ["liviano", "medio", "abrigado"]},
+        },
+        "required": ["tipo", "color", "formalidad", "abrigo"],
+        "additionalProperties": False,
     },
-    "required": ["tipo", "color", "formalidad", "abrigo"],
 }
 
 PROMPT = (
@@ -25,27 +25,20 @@ PROMPT = (
 )
 
 
-def get_client() -> genai.Client:
-    global _client
-    if _client is None:
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise RuntimeError("Falta la variable de entorno GEMINI_API_KEY")
-        _client = genai.Client(api_key=api_key)
-    return _client
-
-
 def inferir_atributos(imagen_bytes: bytes, mime_type: str) -> dict:
     client = get_client()
-    response = client.models.generate_content(
-        model="gemini-flash-latest",
-        contents=[
-            types.Part.from_bytes(data=imagen_bytes, mime_type=mime_type),
-            PROMPT,
+    b64 = base64.b64encode(imagen_bytes).decode("utf-8")
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": PROMPT},
+                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}"}},
+                ],
+            }
         ],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=ATRIBUTOS_SCHEMA,
-        ),
+        response_format={"type": "json_schema", "json_schema": ATRIBUTOS_SCHEMA},
     )
-    return json.loads(response.text)
+    return json.loads(response.choices[0].message.content)
