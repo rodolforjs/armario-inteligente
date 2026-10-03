@@ -171,7 +171,14 @@ def generar_recomendacion(prendas_disponibles: list[dict], ocasion: str | None, 
             {
                 "prenda_ids": [p["id"] for p in c["piezas"]],
                 "piezas": [
-                    {"id": p["id"], "tipo": p["tipo"], "color": p["color"], "foto_path": p["foto_path"]}
+                    {
+                        "id": p["id"],
+                        "tipo": p["tipo"],
+                        "color": p["color"],
+                        "formalidad": p["formalidad"],
+                        "abrigo": p["abrigo"],
+                        "foto_path": p["foto_path"],
+                    }
                     for p in c["piezas"]
                 ],
                 "score": round(c["score"], 2),

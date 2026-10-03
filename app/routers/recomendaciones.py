@@ -156,6 +156,8 @@ def rechazar_prenda(sesion_id: str, rechazo: RechazarPrenda):
             "id": reemplazo["id"],
             "tipo": reemplazo["tipo"],
             "color": reemplazo["color"],
+            "formalidad": reemplazo["formalidad"],
+            "abrigo": reemplazo["abrigo"],
             "foto_path": reemplazo["foto_path"],
         }
         conjunto["piezas"] = [

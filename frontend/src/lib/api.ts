@@ -22,7 +22,14 @@ export type Prenda = {
 
 export type Zona = { id: string; nombre: string; led_id: string | null };
 
-export type PiezaConjunto = { id: number; tipo: string; color: string; foto_path: string };
+export type PiezaConjunto = {
+  id: number;
+  tipo: string;
+  color: string;
+  formalidad: string;
+  abrigo: string;
+  foto_path: string;
+};
 
 export type Conjunto = {
   prenda_ids: number[];

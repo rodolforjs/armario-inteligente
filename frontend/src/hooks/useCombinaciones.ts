@@ -7,6 +7,7 @@ export function useCombinaciones() {
   const [clima, setClima] = useState<Clima | null>(null);
   const [buscando, setBuscando] = useState(false);
   const [aviso, setAviso] = useState("");
+  const [confirmado, setConfirmado] = useState<Conjunto | null>(null);
 
   async function verCombinaciones(modo: Modo = "exploratorio") {
     setBuscando(true);
@@ -31,14 +32,19 @@ export function useCombinaciones() {
     setBuscando(true);
     try {
       const sesion = await api.obtenerSesion(sesionId);
-      await api.aceptarConjunto(sesionId, sesion.conjuntos[idx].prenda_ids);
-      setAviso("¡Conjunto confirmado! Que lo disfrutes.");
+      const conjuntoConfirmado = sesion.conjuntos[idx];
+      await api.aceptarConjunto(sesionId, conjuntoConfirmado.prenda_ids);
+      setConfirmado(conjuntoConfirmado);
       setConjuntos([]);
       setSesionId(null);
       alConfirmar?.();
     } finally {
       setBuscando(false);
     }
+  }
+
+  function cerrarConfirmacion() {
+    setConfirmado(null);
   }
 
   async function cambiarPrenda(idx: number, prendaId: number) {
@@ -79,5 +85,18 @@ export function useCombinaciones() {
     setAviso("");
   }
 
-  return { sesionId, conjuntos, clima, buscando, aviso, verCombinaciones, aceptar, cambiarPrenda, otrasOpciones, reiniciar };
+  return {
+    sesionId,
+    conjuntos,
+    clima,
+    buscando,
+    aviso,
+    confirmado,
+    verCombinaciones,
+    aceptar,
+    cambiarPrenda,
+    otrasOpciones,
+    reiniciar,
+    cerrarConfirmacion,
+  };
 }
