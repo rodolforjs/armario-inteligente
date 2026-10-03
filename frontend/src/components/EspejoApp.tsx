@@ -5,9 +5,12 @@ import { FondoEspejo } from "@/components/FondoEspejo";
 import { PantallaExito } from "@/components/PantallaExito";
 import { useCombinaciones } from "@/hooks/useCombinaciones";
 import { api } from "@/lib/api";
+import { mensajeAmigable } from "@/lib/errores";
 import { escuchar, hablar, vozDisponible } from "@/lib/voz";
 
 export function EspejoApp() {
+  const [modoEspejo, setModoEspejo] = useState(false);
+
   const {
     sesionId,
     conjuntos,
@@ -58,7 +61,7 @@ export function EspejoApp() {
           break;
       }
     } catch (err) {
-      setRespuestaAsistente(`Error: ${(err as Error).message}`);
+      setRespuestaAsistente(mensajeAmigable((err as Error).message));
     }
   }
 
@@ -74,7 +77,28 @@ export function EspejoApp() {
 
   return (
     <div className="relative min-h-screen text-white flex flex-col items-center justify-center p-8 gap-6">
-      <FondoEspejo />
+      {modoEspejo ? (
+        <FondoEspejo />
+      ) : (
+        <div className="fixed inset-0 -z-10 bg-gradient-to-b from-neutral-900 to-neutral-800" />
+      )}
+
+      <div className="fixed top-4 right-4 flex flex-col items-end gap-1">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setModoEspejo((v) => !v)}
+          className="bg-white/10 backdrop-blur"
+        >
+          {modoEspejo ? "🪞 Modo espejo" : "🖥️ Modo UI"}
+        </Button>
+        {modoEspejo && (
+          <p className="text-[11px] text-white/70 drop-shadow max-w-48 text-right">
+            Cámara encendida solo como fondo visual. No se graba ni se envía a ningún servidor.
+          </p>
+        )}
+      </div>
 
       <h1 className="text-3xl font-semibold drop-shadow-lg">Armario Inteligente</h1>
 

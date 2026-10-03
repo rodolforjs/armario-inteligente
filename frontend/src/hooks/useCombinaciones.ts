@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { api, type Clima, type Conjunto, type Modo } from "@/lib/api";
+import { mensajeAmigable } from "@/lib/errores";
+
+const DURACION_AVISO_MS = 6000;
 
 export function useCombinaciones() {
   const [sesionId, setSesionId] = useState<string | null>(null);
@@ -8,6 +11,15 @@ export function useCombinaciones() {
   const [buscando, setBuscando] = useState(false);
   const [aviso, setAviso] = useState("");
   const [confirmado, setConfirmado] = useState<Conjunto | null>(null);
+  const timeoutAviso = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function mostrarAviso(texto: string, autoLimpiar = true) {
+    if (timeoutAviso.current) clearTimeout(timeoutAviso.current);
+    setAviso(texto);
+    if (autoLimpiar) {
+      timeoutAviso.current = setTimeout(() => setAviso(""), DURACION_AVISO_MS);
+    }
+  }
 
   async function verCombinaciones(modo: Modo = "exploratorio") {
     setBuscando(true);
@@ -20,7 +32,7 @@ export function useCombinaciones() {
       setConjuntos(data.conjuntos);
       return data.conjuntos;
     } catch (err) {
-      setAviso(`Error: ${(err as Error).message}`);
+      mostrarAviso(mensajeAmigable((err as Error).message));
       return [];
     } finally {
       setBuscando(false);
@@ -38,6 +50,8 @@ export function useCombinaciones() {
       setConjuntos([]);
       setSesionId(null);
       alConfirmar?.();
+    } catch (err) {
+      mostrarAviso(mensajeAmigable((err as Error).message));
     } finally {
       setBuscando(false);
     }
@@ -54,7 +68,7 @@ export function useCombinaciones() {
       const data = await api.rechazarPrenda(sesionId, idx, prendaId);
       setConjuntos(data.conjuntos);
     } catch (err) {
-      setAviso(`Error: ${(err as Error).message}`);
+      mostrarAviso(mensajeAmigable((err as Error).message));
     } finally {
       setBuscando(false);
     }
@@ -66,13 +80,15 @@ export function useCombinaciones() {
     try {
       const data = await api.rechazarConjunto(sesionId);
       if (data.estado === "modo_libre") {
-        setAviso("Ya van 2 rechazos. Elige tú mismo desde tu armario esta vez.");
+        mostrarAviso("Ya van 2 rechazos. Elige tú mismo desde tu armario esta vez.", false);
         setConjuntos([]);
         setSesionId(null);
         return;
       }
       setClima(data.clima ?? null);
       setConjuntos(data.conjuntos ?? []);
+    } catch (err) {
+      mostrarAviso(mensajeAmigable((err as Error).message));
     } finally {
       setBuscando(false);
     }

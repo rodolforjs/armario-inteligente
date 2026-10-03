@@ -9,6 +9,7 @@ import { CameraCapture, type CameraCaptureHandle } from "@/components/CameraCapt
 import { PantallaExito } from "@/components/PantallaExito";
 import { useCombinaciones } from "@/hooks/useCombinaciones";
 import { api, type Atributos, type Prenda } from "@/lib/api";
+import { mensajeAmigable } from "@/lib/errores";
 import { escuchar, hablar, vozDisponible } from "@/lib/voz";
 
 type ModoCaptura = "camara" | "archivo" | null;
@@ -76,7 +77,7 @@ export function Armario() {
           : "La IA no está disponible ahora mismo — completa los atributos a mano.",
       );
     } catch (err) {
-      setMensaje(`Error: ${(err as Error).message}`);
+      setMensaje(mensajeAmigable((err as Error).message));
     } finally {
       setCargando(false);
     }
@@ -91,7 +92,7 @@ export function Armario() {
       cerrarCaptura();
       cargar();
     } catch (err) {
-      setMensaje(`Error: ${(err as Error).message}`);
+      setMensaje(mensajeAmigable((err as Error).message));
     } finally {
       setCargando(false);
     }
@@ -159,7 +160,7 @@ export function Armario() {
           break;
       }
     } catch (err) {
-      setRespuestaAsistente(`Error: ${(err as Error).message}`);
+      setRespuestaAsistente(mensajeAmigable((err as Error).message));
     }
   }
 
