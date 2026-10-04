@@ -14,6 +14,9 @@ export type Prenda = {
   abrigo: string;
   tag_uid: string | null;
   zona_actual: string | null;
+  marca: string | null;
+  material: string | null;
+  temporada: string | null;
   estado: "disponible" | "fuera";
   veces_usada: number;
   fecha_ultimo_uso: string | null;
@@ -90,6 +93,9 @@ export const api = {
     abrigo: string;
     zona_actual?: string;
     tag_uid?: string;
+    marca?: string;
+    material?: string;
+    temporada?: string;
   }) => {
     const formData = new FormData();
     Object.entries(payload).forEach(([k, v]) => v && formData.append(k, v));
@@ -100,6 +106,13 @@ export const api = {
   },
 
   listarPrendas: () => fetch("/prendas").then(parseOrThrow) as Promise<Prenda[]>,
+
+  editarPrenda: (id: number, cambios: Partial<Prenda>) =>
+    fetch(`/prendas/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cambios),
+    }).then(parseOrThrow),
 
   listarZonas: () => fetch("/zonas").then(parseOrThrow) as Promise<Zona[]>,
 

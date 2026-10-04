@@ -61,6 +61,9 @@ def confirmar_prenda(
     abrigo: str = Form(...),
     zona_actual: str | None = Form(None),
     tag_uid: str | None = Form(None),
+    marca: str | None = Form(None),
+    material: str | None = Form(None),
+    temporada: str | None = Form(None),
 ):
     pendiente = _PENDIENTES.pop(token, None)
     if pendiente is None:
@@ -69,9 +72,9 @@ def confirmar_prenda(
     ahora = datetime.now(timezone.utc).isoformat()
     with db_session() as conn:
         cursor = conn.execute(
-            """INSERT INTO prenda (foto_path, tipo, color, formalidad, abrigo, tag_uid, zona_actual, estado, creado_en)
-               VALUES (?, ?, ?, ?, ?, ?, ?, 'disponible', ?) RETURNING id""",
-            (pendiente["foto_url"], tipo, color, formalidad, abrigo, tag_uid, zona_actual, ahora),
+            """INSERT INTO prenda (foto_path, tipo, color, formalidad, abrigo, tag_uid, zona_actual, marca, material, temporada, estado, creado_en)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'disponible', ?) RETURNING id""",
+            (pendiente["foto_url"], tipo, color, formalidad, abrigo, tag_uid, zona_actual, marca, material, temporada, ahora),
         )
         prenda_id = cursor.fetchone()["id"]
         registrar_evento(conn, "prenda_creada", prenda_id=prenda_id, payload={"tipo": tipo, "color": color})
@@ -110,7 +113,18 @@ def obtener_prenda(prenda_id: int):
 
 @router.patch("/{prenda_id}")
 def editar_prenda(prenda_id: int, cambios: dict):
-    campos_permitidos = {"tipo", "color", "formalidad", "abrigo", "zona_actual", "estado", "tag_uid"}
+    campos_permitidos = {
+        "tipo",
+        "color",
+        "formalidad",
+        "abrigo",
+        "zona_actual",
+        "estado",
+        "tag_uid",
+        "marca",
+        "material",
+        "temporada",
+    }
     campos = {k: v for k, v in cambios.items() if k in campos_permitidos}
     if not campos:
         raise HTTPException(400, "No enviaste campos válidos para editar")

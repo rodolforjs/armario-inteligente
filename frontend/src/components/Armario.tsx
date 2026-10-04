@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CameraCapture, type CameraCaptureHandle } from "@/components/CameraCapture";
+import { DetallePrenda } from "@/components/DetallePrenda";
 import { PantallaExito } from "@/components/PantallaExito";
 import { useCombinaciones } from "@/hooks/useCombinaciones";
 import { api, type Atributos, type Prenda } from "@/lib/api";
@@ -24,7 +25,9 @@ export function Armario() {
   const [token, setToken] = useState<string | null>(null);
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
   const [atributos, setAtributos] = useState<Atributos>({ tipo: "", color: "", formalidad: "casual", abrigo: "medio" });
+  const [extras, setExtras] = useState({ marca: "", material: "", temporada: "" });
   const cameraRef = useRef<CameraCaptureHandle>(null);
+  const [prendaSeleccionada, setPrendaSeleccionada] = useState<Prenda | null>(null);
 
   const {
     conjuntos,
@@ -60,6 +63,7 @@ export function Armario() {
     setToken(null);
     setFotoUrl(null);
     setAtributos({ tipo: "", color: "", formalidad: "casual", abrigo: "medio" });
+    setExtras({ marca: "", material: "", temporada: "" });
     setMensaje("");
   }
 
@@ -88,7 +92,7 @@ export function Armario() {
     if (!token) return;
     setCargando(true);
     try {
-      await api.confirmarPrenda({ token, ...atributos });
+      await api.confirmarPrenda({ token, ...atributos, ...extras });
       cerrarCaptura();
       cargar();
     } catch (err) {
@@ -284,6 +288,33 @@ export function Armario() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Marca (opcional)</Label>
+                    <Input value={extras.marca} onChange={(e) => setExtras({ ...extras, marca: e.target.value })} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Material (opcional)</Label>
+                    <Input
+                      value={extras.material}
+                      onChange={(e) => setExtras({ ...extras, material: e.target.value })}
+                      placeholder="ej. algodón, denim, lana"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Temporada (opcional)</Label>
+                    <Select value={extras.temporada || "ninguna"} onValueChange={(v) => setExtras({ ...extras, temporada: v === "ninguna" ? "" : v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="— sin especificar —" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ninguna">— sin especificar —</SelectItem>
+                        <SelectItem value="verano">verano</SelectItem>
+                        <SelectItem value="invierno">invierno</SelectItem>
+                        <SelectItem value="entretiempo">entretiempo</SelectItem>
+                        <SelectItem value="todo_el_ano">todo el año</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="flex gap-2">
                     <Button type="submit" disabled={cargando} className="flex-1">
                       Guardar
@@ -310,7 +341,11 @@ export function Armario() {
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 {prendas.map((p) => (
-                  <Card key={p.id} className="overflow-hidden">
+                  <Card
+                    key={p.id}
+                    className="overflow-hidden cursor-pointer"
+                    onClick={() => setPrendaSeleccionada(p)}
+                  >
                     <img src={p.foto_path} alt={p.tipo} className="w-full h-24 object-cover" />
                     <CardContent className="p-1.5 text-xs">
                       <strong>{p.tipo}</strong>
@@ -378,6 +413,17 @@ export function Armario() {
             )}
           </div>
         </>
+      )}
+
+      {prendaSeleccionada && (
+        <DetallePrenda
+          prenda={prendaSeleccionada}
+          onCerrar={() => setPrendaSeleccionada(null)}
+          onGuardado={() => {
+            cargar();
+            setPrendaSeleccionada(null);
+          }}
+        />
       )}
     </div>
   );

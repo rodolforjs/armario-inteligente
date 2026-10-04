@@ -30,6 +30,9 @@ SCHEMA_STATEMENTS = [
         creado_en TEXT NOT NULL
     )
     """,
+    "ALTER TABLE prenda ADD COLUMN IF NOT EXISTS marca TEXT",
+    "ALTER TABLE prenda ADD COLUMN IF NOT EXISTS material TEXT",
+    "ALTER TABLE prenda ADD COLUMN IF NOT EXISTS temporada TEXT",
     """
     CREATE TABLE IF NOT EXISTS sesion_recomendacion (
         id TEXT PRIMARY KEY,
