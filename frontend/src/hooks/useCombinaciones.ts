@@ -21,12 +21,12 @@ export function useCombinaciones() {
     }
   }
 
-  async function verCombinaciones(modo: Modo = "exploratorio") {
+  async function verCombinaciones(modo: Modo = "exploratorio", ocasion: string | null = null, textoLibre: string | null = null) {
     setBuscando(true);
     setAviso("");
     setConjuntos([]);
     try {
-      const data = await api.pedirRecomendacion({ modo, ocasion: null, texto_libre: null });
+      const data = await api.pedirRecomendacion({ modo, ocasion, texto_libre: textoLibre });
       setSesionId(data.sesion_id);
       setClima(data.clima);
       setConjuntos(data.conjuntos);

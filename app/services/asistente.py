@@ -18,6 +18,8 @@ ACCIONES = [
     "desconocido",
 ]
 
+OCASIONES = ["casual", "formal", "deportivo"]
+
 SCHEMA = {
     "name": "comando_voz",
     "strict": True,
@@ -26,15 +28,17 @@ SCHEMA = {
         "properties": {
             "accion": {"type": "string", "enum": ACCIONES},
             "parametro": {"type": ["string", "null"]},
+            "ocasion": {"type": ["string", "null"], "enum": [*OCASIONES, None]},
             "respuesta_hablada": {"type": "string"},
         },
-        "required": ["accion", "parametro", "respuesta_hablada"],
+        "required": ["accion", "parametro", "ocasion", "respuesta_hablada"],
         "additionalProperties": False,
     },
 }
 
 PROMPT_BASE = """Eres el cerebro de un asistente de voz para un armario inteligente. El usuario te habla
-y tú decides qué acción debe ejecutar la app, y qué le respondes en voz alta (breve, cercano, en español).
+y tú decides qué acción debe ejecutar la app, y qué le respondes en voz alta (breve, cercano, en español,
+afirmando que ya lo estás haciendo — nunca preguntes si quiere continuar, la app ya ejecuta la acción).
 
 Acciones posibles, según la etapa actual de la app (etapa en el contexto):
 - abrir_camara: el usuario quiere sacar una foto de una prenda nueva (solo tiene sentido en etapa "inicio").
@@ -43,30 +47,42 @@ Acciones posibles, según la etapa actual de la app (etapa en el contexto):
 - repetir_foto: la foto no sirvió, tomar otra (solo con etapa "foto_capturada").
 - cancelar: cancelar el proceso de subir una prenda y volver al inicio.
 - guardar_prenda: guardar la prenda en el armario con los atributos que ya detectó la IA (solo con etapa "confirmando_atributos").
-- ver_combinaciones: pedir sugerencias de qué ponerse (etapa "inicio").
+- ver_combinaciones: pedir sugerencias de qué ponerse (etapa "inicio"). Además, completa "ocasion" con
+  "casual", "formal" o "deportivo" según lo que describe el usuario (ej. "cita elegante", "entrevista de
+  trabajo", "matrimonio" -> formal; "ir al gimnasio", "salir a correr" -> deportivo; si no dice nada
+  relacionado, deja ocasion en null).
 - confirmar_conjunto: aceptar el conjunto de ropa que se le mostró (etapa "mostrando_combinaciones").
 - cambiar_prenda: pide cambiar una pieza específica del conjunto; en "parametro" pon el tipo de prenda
   mencionado (ej. "camisa"), basándote en las piezas listadas en el contexto.
 - otras_opciones: pedir otro conjunto distinto (etapa "mostrando_combinaciones").
 - desconocido: si lo que dijo no tiene sentido para la etapa actual, o no entendiste.
 
+Para cualquier acción que no sea "ver_combinaciones", deja "ocasion" en null.
 Si la acción no es válida para la etapa actual, responde "desconocido" y explica brevemente qué puede hacer ahora.
 Responde solo JSON, sin explicaciones fuera del JSON."""
 
 
+def _detectar_ocasion(t: str) -> str | None:
+    if any(p in t for p in ["elegante", "formal", "entrevista", "matrimonio", "oficina", "reunión", "reunion", "cita"]):
+        return "formal"
+    if any(p in t for p in ["deporte", "gimnasio", "gym", "correr", "entrenar", "ejercicio"]):
+        return "deportivo"
+    return None
+
+
 def _interpretar_con_reglas(transcripcion: str, contexto: dict) -> dict:
-    """Respaldo sin IA por si Gemini no responde: cubre los comandos más comunes por etapa."""
+    """Respaldo sin IA por si la IA no responde: cubre los comandos más comunes por etapa."""
     t = transcripcion.lower()
     etapa = contexto.get("etapa", "inicio")
 
-    def resultado(accion: str, hablada: str, parametro: str = "") -> dict:
-        return {"accion": accion, "parametro": parametro, "respuesta_hablada": hablada}
+    def resultado(accion: str, hablada: str, parametro: str = "", ocasion: str | None = None) -> dict:
+        return {"accion": accion, "parametro": parametro, "ocasion": ocasion, "respuesta_hablada": hablada}
 
     if etapa == "inicio":
         if any(p in t for p in ["foto", "subir", "escane", "agregar prenda"]):
             return resultado("abrir_camara", "Abro la cámara.")
         if any(p in t for p in ["combina", "ponerme", "vestir", "recomien", "sugerencia"]):
-            return resultado("ver_combinaciones", "Buscando una combinación para ti.")
+            return resultado("ver_combinaciones", "Buscando una combinación para ti.", ocasion=_detectar_ocasion(t))
     elif etapa == "camara_abierta":
         if any(p in t for p in ["captura", "toma", "saca", "ahora"]):
             return resultado("capturar_foto", "Capturando.")

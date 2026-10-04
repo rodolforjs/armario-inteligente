@@ -63,7 +63,12 @@ export type AccionVoz =
   | "otras_opciones"
   | "desconocido";
 
-export type RespuestaVoz = { accion: AccionVoz; parametro?: string; respuesta_hablada: string };
+export type RespuestaVoz = {
+  accion: AccionVoz;
+  parametro?: string;
+  ocasion?: "casual" | "formal" | "deportivo" | null;
+  respuesta_hablada: string;
+};
 
 async function parseOrThrow(res: Response) {
   if (!res.ok) {

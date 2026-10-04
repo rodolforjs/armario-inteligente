@@ -148,7 +148,7 @@ export function Armario() {
           guardarPrenda();
           break;
         case "ver_combinaciones":
-          verCombinaciones("preciso");
+          verCombinaciones("preciso", resp.ocasion ?? null, texto);
           break;
         case "confirmar_conjunto":
           aceptar(0, cargar);
