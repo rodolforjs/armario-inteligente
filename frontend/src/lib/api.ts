@@ -61,6 +61,7 @@ export type AccionVoz =
   | "confirmar_conjunto"
   | "cambiar_prenda"
   | "otras_opciones"
+  | "preguntar"
   | "desconocido";
 
 export type RespuestaVoz = {

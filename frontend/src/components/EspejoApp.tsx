@@ -3,10 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FondoEspejo } from "@/components/FondoEspejo";
 import { PantallaExito } from "@/components/PantallaExito";
+import { useAsistenteVoz } from "@/hooks/useAsistenteVoz";
 import { useCombinaciones } from "@/hooks/useCombinaciones";
-import { api } from "@/lib/api";
-import { mensajeAmigable } from "@/lib/errores";
-import { escuchar, hablar, vozDisponible } from "@/lib/voz";
 
 export function EspejoApp() {
   const [modoEspejo, setModoEspejo] = useState(false);
@@ -25,30 +23,21 @@ export function EspejoApp() {
     cerrarConfirmacion,
   } = useCombinaciones();
 
-  const [escuchando, setEscuchando] = useState(false);
-  const [transcripcion, setTranscripcion] = useState("");
-  const [respuestaAsistente, setRespuestaAsistente] = useState("");
-
   function etapaActual(): string {
     return conjuntos.length > 0 ? "mostrando_combinaciones" : "inicio";
   }
 
-  async function manejarComandoVoz(texto: string) {
-    setTranscripcion(texto);
-    try {
-      const resp = await api.comandoVoz(texto, {
-        etapa: etapaActual(),
-        piezas_conjunto: conjuntos[0]?.piezas.map((p) => p.tipo) ?? [],
-      });
-      setRespuestaAsistente(resp.respuesta_hablada);
-      hablar(resp.respuesta_hablada);
-
+  const { escuchando, transcripcion, respuestaAsistente, alMicrofono, reiniciarHistorial, vozDisponible } = useAsistenteVoz({
+    etapaActual,
+    contextoExtra: () => ({ piezas_conjunto: conjuntos[0]?.piezas.map((p) => p.tipo) ?? [] }),
+    onAccion: (resp, texto) => {
       switch (resp.accion) {
         case "ver_combinaciones":
           verCombinaciones("preciso", resp.ocasion ?? null, texto);
           break;
         case "confirmar_conjunto":
           aceptar(0);
+          reiniciarHistorial();
           break;
         case "cambiar_prenda": {
           const tipoBuscado = (resp.parametro || "").toLowerCase();
@@ -60,20 +49,8 @@ export function EspejoApp() {
           otrasOpciones();
           break;
       }
-    } catch (err) {
-      setRespuestaAsistente(mensajeAmigable((err as Error).message));
-    }
-  }
-
-  function alMicrofono() {
-    if (escuchando) return;
-    setEscuchando(true);
-    setTranscripcion("");
-    escuchar(
-      (texto) => manejarComandoVoz(texto),
-      () => setEscuchando(false),
-    );
-  }
+    },
+  });
 
   return (
     <div className="relative min-h-screen text-white flex flex-col items-center justify-center p-8 gap-6">

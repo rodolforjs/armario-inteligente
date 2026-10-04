@@ -8,10 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CameraCapture, type CameraCaptureHandle } from "@/components/CameraCapture";
 import { DetallePrenda } from "@/components/DetallePrenda";
 import { PantallaExito } from "@/components/PantallaExito";
+import { useAsistenteVoz } from "@/hooks/useAsistenteVoz";
 import { useCombinaciones } from "@/hooks/useCombinaciones";
 import { api, type Atributos, type Prenda } from "@/lib/api";
 import { mensajeAmigable } from "@/lib/errores";
-import { escuchar, hablar, vozDisponible } from "@/lib/voz";
 
 type ModoCaptura = "camara" | "archivo" | null;
 
@@ -42,10 +42,6 @@ export function Armario() {
     reiniciar: reiniciarCombinaciones,
     cerrarConfirmacion,
   } = useCombinaciones();
-
-  const [escuchando, setEscuchando] = useState(false);
-  const [transcripcion, setTranscripcion] = useState("");
-  const [respuestaAsistente, setRespuestaAsistente] = useState("");
 
   function cargar() {
     setCargando(true);
@@ -95,6 +91,7 @@ export function Armario() {
       await api.confirmarPrenda({ token, ...atributos, ...extras });
       cerrarCaptura();
       cargar();
+      reiniciarHistorial();
     } catch (err) {
       setMensaje(mensajeAmigable((err as Error).message));
     } finally {
@@ -111,22 +108,14 @@ export function Armario() {
     return "inicio";
   }
 
-  function construirContexto() {
-    return {
-      etapa: etapaActual(),
+  const { escuchando, transcripcion, respuestaAsistente, alMicrofono, reiniciarHistorial, vozDisponible } = useAsistenteVoz({
+    etapaActual,
+    contextoExtra: () => ({
       atributos_detectados: token ? atributos : undefined,
       piezas_conjunto: conjuntos[0]?.piezas.map((p) => p.tipo) ?? [],
       cantidad_prendas_en_armario: prendas.length,
-    };
-  }
-
-  async function manejarComandoVoz(texto: string) {
-    setTranscripcion(texto);
-    try {
-      const resp = await api.comandoVoz(texto, construirContexto());
-      setRespuestaAsistente(resp.respuesta_hablada);
-      hablar(resp.respuesta_hablada);
-
+    }),
+    onAccion: (resp, texto) => {
       switch (resp.accion) {
         case "abrir_camara":
           setModoCaptura("camara");
@@ -143,6 +132,7 @@ export function Armario() {
         case "cancelar":
           cerrarCaptura();
           reiniciarCombinaciones();
+          reiniciarHistorial();
           break;
         case "guardar_prenda":
           guardarPrenda();
@@ -152,6 +142,7 @@ export function Armario() {
           break;
         case "confirmar_conjunto":
           aceptar(0, cargar);
+          reiniciarHistorial();
           break;
         case "cambiar_prenda": {
           const tipoBuscado = (resp.parametro || "").toLowerCase();
@@ -163,20 +154,8 @@ export function Armario() {
           otrasOpciones();
           break;
       }
-    } catch (err) {
-      setRespuestaAsistente(mensajeAmigable((err as Error).message));
-    }
-  }
-
-  function alMicrofono() {
-    if (escuchando) return;
-    setEscuchando(true);
-    setTranscripcion("");
-    escuchar(
-      (texto) => manejarComandoVoz(texto),
-      () => setEscuchando(false),
-    );
-  }
+    },
+  });
 
   return (
     <div className="max-w-2xl mx-auto p-4 flex flex-col gap-5">
