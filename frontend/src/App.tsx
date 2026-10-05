@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Armario } from "@/components/Armario";
+import { EscanerPerchero } from "@/components/EscanerPerchero";
 import { EspejoApp } from "@/components/EspejoApp";
 
 const UMBRAL_ESCRITORIO = 1024;
@@ -18,6 +19,10 @@ function App() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  if (window.location.pathname === "/escaner") {
+    return <EscanerPerchero />;
+  }
 
   return escritorio ? <EspejoApp /> : <Armario />;
 }

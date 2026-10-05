@@ -2,12 +2,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
 from app.db import init_db
-from app.routers import asistente, esp32, estado, prendas, recomendaciones, zonas
+from app.routers import asistente, esp32, estado, prendas, recomendaciones, vision_perchero, zonas
 
 app = FastAPI(title="Armario Inteligente")
 
@@ -21,8 +22,20 @@ app.include_router(zonas.router)
 app.include_router(recomendaciones.router)
 app.include_router(esp32.router)
 app.include_router(estado.router)
+app.include_router(vision_perchero.router)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="frontend")
+app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+
+@app.get("/{ruta_completa:path}")
+async def frontend(ruta_completa: str):
+    # SPA: cualquier ruta que no sea API ni un archivo estático real (ej. /escaner,
+    # que solo existe como ruteo del lado del cliente) sirve el index.html de React.
+    candidato = STATIC_DIR / ruta_completa
+    if ruta_completa and candidato.is_file():
+        return FileResponse(candidato)
+    return FileResponse(STATIC_DIR / "index.html")
+
 
 # Uso: uvicorn app.main:app --host 0.0.0.0 --port $PORT (Render inyecta $PORT)

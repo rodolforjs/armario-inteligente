@@ -73,6 +73,14 @@ export type AccionVoz =
   | "preguntar"
   | "desconocido";
 
+export type DeteccionPerchero = {
+  prenda_id: number;
+  tipo: string;
+  foto_path: string;
+  zona_sugerida: string | null;
+  confianza: number;
+};
+
 export type RespuestaVoz = {
   accion: AccionVoz;
   parametro?: string;
@@ -179,4 +187,22 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ texto, contexto }),
     }).then(parseOrThrow) as Promise<RespuestaVoz>,
+
+  escanearPerchero: (archivo: File, camaraId: "izquierda" | "derecha" | "unica") => {
+    const formData = new FormData();
+    formData.append("archivo", archivo);
+    formData.append("camara_id", camaraId);
+    return fetch("/vision/escanear-perchero", { method: "POST", body: formData }).then(parseOrThrow) as Promise<{
+      confirmadas: DeteccionPerchero[];
+      pendientes: DeteccionPerchero[];
+      mensaje?: string;
+    }>;
+  },
+
+  confirmarDeteccion: (prendaId: number, zonaId: string | null) =>
+    fetch("/vision/confirmar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prenda_id: prendaId, zona_id: zonaId }),
+    }).then(parseOrThrow),
 };
