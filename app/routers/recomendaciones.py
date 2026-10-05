@@ -49,10 +49,12 @@ def _encender_zonas_de(conn, conjunto: dict, motivo: str):
         return
     placeholders = ",".join("?" for _ in prenda_ids)
     filas = conn.execute(
-        f"SELECT DISTINCT zona_actual FROM prenda WHERE id IN ({placeholders}) AND zona_actual IS NOT NULL",
+        f"""SELECT DISTINCT z.id AS zona_id, z.led_id, z.tipo
+            FROM prenda p JOIN zona z ON z.id = p.zona_actual
+            WHERE p.id IN ({placeholders})""",
         prenda_ids,
     ).fetchall()
-    zonas = [f["zona_actual"] for f in filas]
+    zonas = [{"zona_id": f["zona_id"], "led_id": f["led_id"], "tipo": f["tipo"]} for f in filas]
     estado_led.set_zonas(zonas, motivo)
 
 

@@ -23,7 +23,16 @@ export type Prenda = {
   creado_en: string;
 };
 
-export type Zona = { id: string; nombre: string; led_id: string | null };
+export type Zona = { id: string; nombre: string; led_id: string | null; tipo: "colgador" | "cajon" };
+
+export type LedZonaEncendida = { zona_id: string; led_id: string | null; tipo: string };
+
+export type EstadoGlobal = {
+  prendas: Prenda[];
+  zonas: Zona[];
+  sesion_activa: unknown;
+  leds: { zonas_encendidas: LedZonaEncendida[]; motivo: string };
+};
 
 export type PiezaConjunto = {
   id: number;
@@ -121,6 +130,15 @@ export const api = {
     }).then(parseOrThrow),
 
   listarZonas: () => fetch("/zonas").then(parseOrThrow) as Promise<Zona[]>,
+
+  obtenerEstado: () => fetch("/estado").then(parseOrThrow) as Promise<EstadoGlobal>,
+
+  simularEventoNfc: (uid: string, zona: string, tipo: "visto" | "perdido") =>
+    fetch("/eventos/nfc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid, zona, tipo }),
+    }).then(parseOrThrow),
 
   pedirRecomendacion: (payload: { modo: Modo; ocasion: string | null; texto_libre: string | null }) =>
     fetch("/recomendaciones", {

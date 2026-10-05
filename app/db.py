@@ -33,6 +33,8 @@ SCHEMA_STATEMENTS = [
     "ALTER TABLE prenda ADD COLUMN IF NOT EXISTS marca TEXT",
     "ALTER TABLE prenda ADD COLUMN IF NOT EXISTS material TEXT",
     "ALTER TABLE prenda ADD COLUMN IF NOT EXISTS temporada TEXT",
+    "ALTER TABLE zona ADD COLUMN IF NOT EXISTS tipo TEXT NOT NULL DEFAULT 'colgador'",
+    "UPDATE zona SET tipo = 'cajon' WHERE id = 'zona_3' AND nombre = 'Cajón'",
     """
     CREATE TABLE IF NOT EXISTS sesion_recomendacion (
         id TEXT PRIMARY KEY,
@@ -60,9 +62,9 @@ SCHEMA_STATEMENTS = [
 ]
 
 DEFAULT_ZONAS = [
-    ("zona_1", "Colgador superior", "led_1"),
-    ("zona_2", "Colgador inferior", "led_2"),
-    ("zona_3", "Cajón", "led_3"),
+    ("zona_1", "Colgador superior", "led_1", "colgador"),
+    ("zona_2", "Colgador inferior", "led_2", "colgador"),
+    ("zona_3", "Cajón", "led_3", "cajon"),
 ]
 
 
@@ -111,6 +113,6 @@ def init_db():
         existing = conn.execute("SELECT COUNT(*) AS c FROM zona").fetchone()["c"]
         if existing == 0:
             conn.executemany(
-                "INSERT INTO zona (id, nombre, led_id) VALUES (?, ?, ?)",
+                "INSERT INTO zona (id, nombre, led_id, tipo) VALUES (?, ?, ?, ?)",
                 DEFAULT_ZONAS,
             )
