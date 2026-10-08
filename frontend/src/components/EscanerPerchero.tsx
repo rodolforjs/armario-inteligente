@@ -60,7 +60,11 @@ export function EscanerPerchero() {
 
   return (
     <div className="max-w-xl mx-auto p-4 flex flex-col gap-4">
+      <a href="/" className="text-sm text-muted-foreground underline">← Volver a mis prendas</a>
       <h1 className="text-xl font-semibold">Escáner de perchero</h1>
+      <p className="text-sm text-muted-foreground">
+        Foto del perchero completo con varias prendas colgadas. Reconozco las que ya guardaste y las ubico.
+      </p>
 
       <div className="flex flex-col gap-1.5">
         <label className="text-sm text-muted-foreground">Esta cámara está en el extremo:</label>

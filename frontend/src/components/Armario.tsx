@@ -196,6 +196,11 @@ export function Armario() {
               📷 Sacar foto de una prenda
             </Button>
           )}
+          {modoCaptura === null && !token && (
+            <Button type="button" size="lg" variant="outline" onClick={() => (window.location.href = "/escaner")} className="w-full">
+              🗄️ Escanear el perchero
+            </Button>
+          )}
 
           {modoCaptura === "camara" && !token && (
             <CameraCapture
