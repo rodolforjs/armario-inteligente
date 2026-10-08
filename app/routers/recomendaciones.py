@@ -8,7 +8,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.db import db_session
-from app.services import estado_led
 from app.services.eventos import registrar_evento
 from app.services.recomendacion import MODOS, generar_recomendacion
 
@@ -40,22 +39,6 @@ def _cargar_sesion(conn, sesion_id: str):
 def _prendas_disponibles(conn) -> list[dict]:
     filas = conn.execute("SELECT * FROM prenda WHERE estado = 'disponible'").fetchall()
     return [dict(f) for f in filas]
-
-
-def _encender_zonas_de(conn, conjunto: dict, motivo: str):
-    prenda_ids = conjunto["prenda_ids"]
-    if not prenda_ids:
-        estado_led.apagar_todo()
-        return
-    placeholders = ",".join("?" for _ in prenda_ids)
-    filas = conn.execute(
-        f"""SELECT DISTINCT z.id AS zona_id, z.led_id, z.tipo
-            FROM prenda p JOIN zona z ON z.id = p.zona_actual
-            WHERE p.id IN ({placeholders})""",
-        prenda_ids,
-    ).fetchall()
-    zonas = [{"zona_id": f["zona_id"], "led_id": f["led_id"], "tipo": f["tipo"]} for f in filas]
-    estado_led.set_zonas(zonas, motivo)
 
 
 @router.post("")
@@ -95,7 +78,6 @@ def solicitar_recomendacion(solicitud: SolicitudRecomendacion):
             sesion_id=sesion_id,
             payload={"modo": solicitud.modo, "ocasion": solicitud.ocasion},
         )
-        _encender_zonas_de(conn, resultado["conjuntos"][0], "Conjunto recomendado")
 
     return {"sesion_id": sesion_id, "clima": resultado["clima"], "conjuntos": resultado["conjuntos"]}
 
@@ -124,7 +106,6 @@ def aceptar_conjunto(sesion_id: str, aceptar: AceptarConjunto):
                 (ahora, prenda_id),
             )
             registrar_evento(conn, "prenda_aceptada", sesion_id=sesion_id, prenda_id=prenda_id)
-        estado_led.set_zonas([], "")
 
     return {"ok": True, "sesion_id": sesion_id, "estado": "confirmada"}
 
@@ -179,7 +160,6 @@ def rechazar_prenda(sesion_id: str, rechazo: RechazarPrenda):
             prenda_id=rechazo.prenda_id,
             payload={"reemplazo_id": reemplazo["id"]},
         )
-        _encender_zonas_de(conn, conjunto, "Conjunto actualizado")
 
     return {"sesion_id": sesion_id, "conjuntos": conjuntos}
 
@@ -196,7 +176,6 @@ def rechazar_conjunto(sesion_id: str):
                 (nuevos_rechazos, sesion_id),
             )
             registrar_evento(conn, "modo_libre_activado", sesion_id=sesion_id)
-            estado_led.apagar_todo()
             return {"sesion_id": sesion_id, "estado": "modo_libre"}
 
         disponibles = _prendas_disponibles(conn)
@@ -216,6 +195,5 @@ def rechazar_conjunto(sesion_id: str):
             ),
         )
         registrar_evento(conn, "conjunto_rechazado", sesion_id=sesion_id, payload={"rechazos_count": nuevos_rechazos})
-        _encender_zonas_de(conn, resultado["conjuntos"][0], "Nuevo conjunto recomendado")
 
     return {"sesion_id": sesion_id, "estado": "en_curso", "clima": resultado["clima"], "conjuntos": resultado["conjuntos"]}

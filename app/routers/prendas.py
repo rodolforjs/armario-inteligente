@@ -59,8 +59,6 @@ def confirmar_prenda(
     color: str = Form(...),
     formalidad: str = Form(...),
     abrigo: str = Form(...),
-    zona_actual: str | None = Form(None),
-    tag_uid: str | None = Form(None),
     marca: str | None = Form(None),
     material: str | None = Form(None),
     temporada: str | None = Form(None),
@@ -72,9 +70,9 @@ def confirmar_prenda(
     ahora = datetime.now(timezone.utc).isoformat()
     with db_session() as conn:
         cursor = conn.execute(
-            """INSERT INTO prenda (foto_path, tipo, color, formalidad, abrigo, tag_uid, zona_actual, marca, material, temporada, estado, creado_en)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'disponible', ?) RETURNING id""",
-            (pendiente["foto_url"], tipo, color, formalidad, abrigo, tag_uid, zona_actual, marca, material, temporada, ahora),
+            """INSERT INTO prenda (foto_path, tipo, color, formalidad, abrigo, marca, material, temporada, estado, creado_en)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'disponible', ?) RETURNING id""",
+            (pendiente["foto_url"], tipo, color, formalidad, abrigo, marca, material, temporada, ahora),
         )
         prenda_id = cursor.fetchone()["id"]
         registrar_evento(conn, "prenda_creada", prenda_id=prenda_id, payload={"tipo": tipo, "color": color})
@@ -83,15 +81,12 @@ def confirmar_prenda(
 
 
 @router.get("")
-def listar_prendas(estado: str | None = None, zona: str | None = None, tipo: str | None = None):
+def listar_prendas(estado: str | None = None, tipo: str | None = None):
     query = "SELECT * FROM prenda WHERE 1=1"
     params = []
     if estado:
         query += " AND estado = ?"
         params.append(estado)
-    if zona:
-        query += " AND zona_actual = ?"
-        params.append(zona)
     if tipo:
         query += " AND tipo = ?"
         params.append(tipo)
@@ -118,9 +113,7 @@ def editar_prenda(prenda_id: int, cambios: dict):
         "color",
         "formalidad",
         "abrigo",
-        "zona_actual",
         "estado",
-        "tag_uid",
         "marca",
         "material",
         "temporada",

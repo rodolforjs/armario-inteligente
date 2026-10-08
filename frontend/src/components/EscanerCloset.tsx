@@ -1,37 +1,35 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CameraCapture } from "@/components/CameraCapture";
-import { api, type DeteccionPerchero } from "@/lib/api";
+import { api, type PrendaDetectada } from "@/lib/api";
 
-type CamaraId = "izquierda" | "derecha" | "unica";
-
-export function EscanerPerchero() {
-  const [camaraId, setCamaraId] = useState<CamaraId>("unica");
+export function EscanerCloset() {
   const [escaneando, setEscaneando] = useState(true);
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [avisoCamara, setAvisoCamara] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
   const [estado, setEstado] = useState<"ok" | "revisar" | "error" | null>(null);
-  const [confirmadas, setConfirmadas] = useState<DeteccionPerchero[]>([]);
-  const [pendientes, setPendientes] = useState<DeteccionPerchero[]>([]);
+  const [disponibles, setDisponibles] = useState<PrendaDetectada[]>([]);
+  const [dudosas, setDudosas] = useState<PrendaDetectada[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   async function procesarFoto(archivo: File) {
     setCargando(true);
-    setMensaje("Analizando el perchero...");
+    setMensaje("Mirando el closet...");
     setEstado(null);
-    setConfirmadas([]);
-    setPendientes([]);
+    setDisponibles([]);
+    setDudosas([]);
     try {
-      const data = await api.escanearPerchero(archivo, camaraId);
-      setConfirmadas(data.confirmadas);
-      setPendientes(data.pendientes);
-      setEstado(data.pendientes.length || data.confirmadas.length === 0 ? "revisar" : "ok");
+      const data = await api.escanearCloset(archivo);
+      setDisponibles(data.disponibles);
+      setDudosas(data.dudosas);
+      setEstado(data.dudosas.length || data.disponibles.length === 0 ? "revisar" : "ok");
       setMensaje(
         data.mensaje ||
-          `${data.confirmadas.length} confirmadas automáticamente, ${data.pendientes.length} necesitan que confirmes.`,
+          `${data.disponibles.length} disponibles, ${data.fuera.length} fuera del closet${
+            data.dudosas.length ? `, ${data.dudosas.length} por confirmar` : ""
+          }.`,
       );
     } catch (err) {
       setEstado("error");
@@ -42,43 +40,23 @@ export function EscanerPerchero() {
     }
   }
 
-  async function resolverPendiente(p: DeteccionPerchero, aceptar: boolean) {
+  async function resolverDudosa(p: PrendaDetectada, esta: boolean) {
     try {
-      await api.confirmarDeteccion(p.prenda_id, aceptar ? p.zona_sugerida : null);
-      setPendientes((prev) => prev.filter((x) => x.prenda_id !== p.prenda_id));
-      if (aceptar) setConfirmadas((prev) => [...prev, p]);
+      await api.confirmarDeteccion(p.prenda_id, esta);
+      setDudosas((prev) => prev.filter((x) => x.prenda_id !== p.prenda_id));
+      if (esta) setDisponibles((prev) => [...prev, p]);
     } catch (err) {
       setMensaje((err as Error).message);
     }
   }
 
-  function escanearDeNuevo() {
-    setEscaneando(true);
-    setMensaje("");
-    setEstado(null);
-  }
-
   return (
     <div className="max-w-xl mx-auto p-4 flex flex-col gap-4">
       <a href="/" className="text-sm text-muted-foreground underline">← Volver a mis prendas</a>
-      <h1 className="text-xl font-semibold">Escáner de perchero</h1>
+      <h1 className="text-xl font-semibold">Cámara del closet</h1>
       <p className="text-sm text-muted-foreground">
-        Foto del perchero completo con varias prendas colgadas. Reconozco las que ya guardaste y las ubico.
+        Foto del closet con las prendas colgadas. Reviso cuáles están y cuáles no.
       </p>
-
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm text-muted-foreground">Esta cámara está en el extremo:</label>
-        <Select value={camaraId} onValueChange={(v) => setCamaraId(v as CamaraId)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="izquierda">Izquierdo</SelectItem>
-            <SelectItem value="derecha">Derecho</SelectItem>
-            <SelectItem value="unica">Única cámara (ve todo el perchero)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
       <input
         ref={inputRef}
@@ -102,12 +80,12 @@ export function EscanerPerchero() {
           onCapture={procesarFoto}
           onCancel={() => setEscaneando(false)}
           onUnavailable={() =>
-            setAvisoCamara("No pude abrir la cámara en vivo (revisa el permiso del navegador). Usa el botón de abajo para sacar la foto.")
+            setAvisoCamara("No pude abrir la cámara en vivo (revisa el permiso del navegador). Usa el botón de arriba para sacar la foto.")
           }
         />
       ) : (
-        <Button type="button" onClick={escanearDeNuevo} disabled={cargando}>
-          📷 Escanear el perchero
+        <Button type="button" onClick={() => setEscaneando(true)} disabled={cargando}>
+          📷 Escanear el closet
         </Button>
       )}
 
@@ -132,17 +110,17 @@ export function EscanerPerchero() {
         </div>
       )}
 
-      {confirmadas.length > 0 && (
+      {disponibles.length > 0 && (
         <div>
-          <h2 className="text-sm font-medium text-muted-foreground mb-2">Confirmadas automáticamente</h2>
+          <h2 className="text-sm font-medium text-muted-foreground mb-2">Disponibles en el closet</h2>
           <div className="grid grid-cols-3 gap-2">
-            {confirmadas.map((p) => (
+            {disponibles.map((p) => (
               <Card key={p.prenda_id} className="overflow-hidden">
                 <img src={p.foto_path} alt={p.tipo} className="w-full h-20 object-cover" />
                 <CardContent className="p-1.5 text-xs">
                   <strong>{p.tipo}</strong>
                   <br />
-                  <span className="text-muted-foreground">{p.zona_sugerida}</span>
+                  <span className="text-muted-foreground">{p.color}</span>
                 </CardContent>
               </Card>
             ))}
@@ -150,26 +128,24 @@ export function EscanerPerchero() {
         </div>
       )}
 
-      {pendientes.length > 0 && (
+      {dudosas.length > 0 && (
         <div>
-          <h2 className="text-sm font-medium text-muted-foreground mb-2">¿Es correcto? (confianza media/baja)</h2>
+          <h2 className="text-sm font-medium text-muted-foreground mb-2">¿Está en el closet? (poca seguridad)</h2>
           <div className="flex flex-col gap-2">
-            {pendientes.map((p) => (
+            {dudosas.map((p) => (
               <Card key={p.prenda_id}>
                 <CardContent className="flex items-center gap-3 p-2">
                   <img src={p.foto_path} alt={p.tipo} className="w-14 h-14 object-cover rounded-md" />
                   <div className="flex-1 text-sm">
-                    <strong>{p.tipo}</strong>
+                    <strong>{p.tipo}</strong> {p.color}
                     <br />
-                    <span className="text-muted-foreground">
-                      zona sugerida: {p.zona_sugerida ?? "—"} · {Math.round(p.confianza * 100)}% seguro
-                    </span>
+                    <span className="text-muted-foreground">{Math.round((p.confianza ?? 0) * 100)}% seguro</span>
                   </div>
                   <div className="flex gap-1">
-                    <Button type="button" size="sm" onClick={() => resolverPendiente(p, true)}>
+                    <Button type="button" size="sm" onClick={() => resolverDudosa(p, true)}>
                       Sí
                     </Button>
-                    <Button type="button" size="sm" variant="outline" onClick={() => resolverPendiente(p, false)}>
+                    <Button type="button" size="sm" variant="outline" onClick={() => resolverDudosa(p, false)}>
                       No
                     </Button>
                   </div>

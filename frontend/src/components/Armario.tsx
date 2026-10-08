@@ -198,7 +198,7 @@ export function Armario() {
           )}
           {modoCaptura === null && !token && (
             <Button type="button" size="lg" variant="outline" onClick={() => (window.location.href = "/escaner")} className="w-full">
-              🗄️ Escanear el perchero
+              🗄️ Escanear el closet
             </Button>
           )}
 

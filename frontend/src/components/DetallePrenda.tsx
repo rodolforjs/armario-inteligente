@@ -28,7 +28,6 @@ export function DetallePrenda({
     material: prenda.material ?? "",
     temporada: prenda.temporada ?? "",
     estado: prenda.estado,
-    tag_uid: prenda.tag_uid ?? "",
   });
 
   async function guardar() {
@@ -37,7 +36,6 @@ export function DetallePrenda({
     try {
       await api.editarPrenda(prenda.id, {
         ...valores,
-        tag_uid: valores.tag_uid.trim() === "" ? null : valores.tag_uid.trim(),
       });
       onGuardado();
       setEditando(false);
@@ -81,14 +79,6 @@ export function DetallePrenda({
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Veces usada</dt>
                   <dd>{prenda.veces_usada}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Zona actual</dt>
-                  <dd>{prenda.zona_actual || "—"}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Tag NFC</dt>
-                  <dd>{prenda.tag_uid || "sin asignar"}</dd>
                 </div>
               </dl>
               <div className="flex gap-2">
@@ -178,15 +168,6 @@ export function DetallePrenda({
                     <SelectItem value="fuera">fuera</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label>Tag NFC</Label>
-                <Input
-                  value={valores.tag_uid}
-                  onChange={(e) => setValores({ ...valores, tag_uid: e.target.value })}
-                  placeholder="ej. TAG001 (el UID que lee el ESP32)"
-                />
               </div>
 
               {error && <p className="text-sm text-destructive">{error}</p>}

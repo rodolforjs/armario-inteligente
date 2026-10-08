@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Armario } from "@/components/Armario";
-import { EscanerPerchero } from "@/components/EscanerPerchero";
+import { EscanerCloset } from "@/components/EscanerCloset";
 import { EspejoApp } from "@/components/EspejoApp";
 import { PruebaVision } from "@/components/PruebaVision";
 
@@ -22,7 +22,7 @@ function App() {
   }, []);
 
   if (window.location.pathname === "/escaner") {
-    return <EscanerPerchero />;
+    return <EscanerCloset />;
   }
 
   if (window.location.pathname === "/prueba") {

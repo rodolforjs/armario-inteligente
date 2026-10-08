@@ -12,8 +12,6 @@ export type Prenda = {
   color: string;
   formalidad: string;
   abrigo: string;
-  tag_uid: string | null;
-  zona_actual: string | null;
   marca: string | null;
   material: string | null;
   temporada: string | null;
@@ -21,17 +19,6 @@ export type Prenda = {
   veces_usada: number;
   fecha_ultimo_uso: string | null;
   creado_en: string;
-};
-
-export type Zona = { id: string; nombre: string; led_id: string | null; tipo: "colgador" | "cajon" };
-
-export type LedZonaEncendida = { zona_id: string; led_id: string | null; tipo: string };
-
-export type EstadoGlobal = {
-  prendas: Prenda[];
-  zonas: Zona[];
-  sesion_activa: unknown;
-  leds: { zonas_encendidas: LedZonaEncendida[]; motivo: string };
 };
 
 export type PiezaConjunto = {
@@ -73,12 +60,12 @@ export type AccionVoz =
   | "preguntar"
   | "desconocido";
 
-export type DeteccionPerchero = {
+export type PrendaDetectada = {
   prenda_id: number;
   tipo: string;
+  color: string;
   foto_path: string;
-  zona_sugerida: string | null;
-  confianza: number;
+  confianza?: number;
 };
 
 export type RespuestaVoz = {
@@ -114,8 +101,6 @@ export const api = {
     color: string;
     formalidad: string;
     abrigo: string;
-    zona_actual?: string;
-    tag_uid?: string;
     marca?: string;
     material?: string;
     temporada?: string;
@@ -135,17 +120,6 @@ export const api = {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cambios),
-    }).then(parseOrThrow),
-
-  listarZonas: () => fetch("/zonas").then(parseOrThrow) as Promise<Zona[]>,
-
-  obtenerEstado: () => fetch("/estado").then(parseOrThrow) as Promise<EstadoGlobal>,
-
-  simularEventoNfc: (uid: string, zona: string, tipo: "visto" | "perdido") =>
-    fetch("/eventos/nfc", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uid, zona, tipo }),
     }).then(parseOrThrow),
 
   pedirRecomendacion: (payload: { modo: Modo; ocasion: string | null; texto_libre: string | null }) =>
@@ -188,21 +162,21 @@ export const api = {
       body: JSON.stringify({ texto, contexto }),
     }).then(parseOrThrow) as Promise<RespuestaVoz>,
 
-  escanearPerchero: (archivo: File, camaraId: "izquierda" | "derecha" | "unica") => {
+  escanearCloset: (archivo: File) => {
     const formData = new FormData();
     formData.append("archivo", archivo);
-    formData.append("camara_id", camaraId);
-    return fetch("/vision/escanear-perchero", { method: "POST", body: formData }).then(parseOrThrow) as Promise<{
-      confirmadas: DeteccionPerchero[];
-      pendientes: DeteccionPerchero[];
+    return fetch("/vision/escanear-closet", { method: "POST", body: formData }).then(parseOrThrow) as Promise<{
+      disponibles: PrendaDetectada[];
+      fuera: PrendaDetectada[];
+      dudosas: PrendaDetectada[];
       mensaje?: string;
     }>;
   },
 
-  confirmarDeteccion: (prendaId: number, zonaId: string | null) =>
+  confirmarDeteccion: (prendaId: number, esta: boolean) =>
     fetch("/vision/confirmar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prenda_id: prendaId, zona_id: zonaId }),
+      body: JSON.stringify({ prenda_id: prendaId, esta }),
     }).then(parseOrThrow),
 };
