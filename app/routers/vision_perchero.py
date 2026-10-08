@@ -12,7 +12,7 @@ from app.services.eventos import registrar_evento
 router = APIRouter(prefix="/vision", tags=["vision"])
 
 UMBRAL_CONFIANZA = 0.6
-MAX_CANDIDATAS = 15
+MAX_CANDIDATAS = 30
 
 
 def _zonas_colgador_ordenadas(conn) -> list[dict]:
@@ -52,14 +52,14 @@ async def escanear_perchero(
 
     with db_session() as conn:
         candidatas = conn.execute(
-            "SELECT id, tipo, color, foto_path FROM prenda WHERE estado = 'fuera' OR zona_actual IS NULL ORDER BY id LIMIT ?",
+            "SELECT id, tipo, color, foto_path FROM prenda ORDER BY id LIMIT ?",
             (MAX_CANDIDATAS,),
         ).fetchall()
         candidatas = [dict(c) for c in candidatas]
         zonas = _zonas_colgador_ordenadas(conn)
 
     if not candidatas:
-        return {"confirmadas": [], "pendientes": [], "mensaje": "No hay prendas pendientes de ubicar."}
+        return {"confirmadas": [], "pendientes": [], "mensaje": "Todavía no hay prendas guardadas."}
 
     try:
         coincidencias = vision_perchero.reconocer_perchero(contenido, archivo.content_type, candidatas)
