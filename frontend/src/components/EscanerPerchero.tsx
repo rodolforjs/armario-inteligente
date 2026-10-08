@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +12,8 @@ export function EscanerPerchero() {
   const [escaneando, setEscaneando] = useState(true);
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState("");
+  const [avisoCamara, setAvisoCamara] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   const [estado, setEstado] = useState<"ok" | "revisar" | "error" | null>(null);
   const [confirmadas, setConfirmadas] = useState<DeteccionPerchero[]>([]);
   const [pendientes, setPendientes] = useState<DeteccionPerchero[]>([]);
@@ -74,11 +76,30 @@ export function EscanerPerchero() {
         </Select>
       </div>
 
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) procesarFoto(f);
+        }}
+      />
+      <Button type="button" variant="secondary" disabled={cargando} onClick={() => inputRef.current?.click()}>
+        📷 Sacar foto / elegir archivo
+      </Button>
+      {avisoCamara && <p className="text-sm text-amber-600">{avisoCamara}</p>}
+
       {escaneando ? (
         <CameraCapture
           onCapture={procesarFoto}
           onCancel={() => setEscaneando(false)}
-          onUnavailable={() => setMensaje("La cámara en vivo no está disponible en esta conexión (necesita HTTPS).")}
+          onUnavailable={() =>
+            setAvisoCamara("No pude abrir la cámara en vivo (revisa el permiso del navegador). Usa el botón de abajo para sacar la foto.")
+          }
         />
       ) : (
         <Button type="button" onClick={escanearDeNuevo} disabled={cargando}>
