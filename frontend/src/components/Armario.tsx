@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CameraCapture, type CameraCaptureHandle } from "@/components/CameraCapture";
 import { DetallePrenda } from "@/components/DetallePrenda";
-import { PanelEstado } from "@/components/PanelEstado";
 import { PantallaExito } from "@/components/PantallaExito";
 import { useAsistenteVoz } from "@/hooks/useAsistenteVoz";
 import { useCombinaciones } from "@/hooks/useCombinaciones";
@@ -29,7 +28,6 @@ export function Armario() {
   const [extras, setExtras] = useState({ marca: "", material: "", temporada: "" });
   const cameraRef = useRef<CameraCaptureHandle>(null);
   const [prendaSeleccionada, setPrendaSeleccionada] = useState<Prenda | null>(null);
-  const [mostrarEstado, setMostrarEstado] = useState(false);
 
   const {
     conjuntos,
@@ -391,18 +389,6 @@ export function Armario() {
               <Button type="button" variant="secondary" onClick={otrasOpciones} disabled={buscandoCombinaciones}>
                 Pedir otras opciones
               </Button>
-            )}
-          </div>
-
-          {/* ---------- Estado del sistema (NFC + LEDs), debug ---------- */}
-          <div>
-            <Button type="button" variant="outline" size="sm" onClick={() => setMostrarEstado((v) => !v)}>
-              {mostrarEstado ? "Ocultar" : "Ver"} estado del sistema (NFC + LEDs)
-            </Button>
-            {mostrarEstado && (
-              <div className="mt-3">
-                <PanelEstado onCambio={cargar} />
-              </div>
             )}
           </div>
         </>

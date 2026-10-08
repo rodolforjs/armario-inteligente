@@ -12,23 +12,27 @@ export function EscanerPerchero() {
   const [escaneando, setEscaneando] = useState(true);
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState("");
+  const [estado, setEstado] = useState<"ok" | "revisar" | "error" | null>(null);
   const [confirmadas, setConfirmadas] = useState<DeteccionPerchero[]>([]);
   const [pendientes, setPendientes] = useState<DeteccionPerchero[]>([]);
 
   async function procesarFoto(archivo: File) {
     setCargando(true);
     setMensaje("Analizando el perchero...");
+    setEstado(null);
     setConfirmadas([]);
     setPendientes([]);
     try {
       const data = await api.escanearPerchero(archivo, camaraId);
       setConfirmadas(data.confirmadas);
       setPendientes(data.pendientes);
+      setEstado(data.pendientes.length || data.confirmadas.length === 0 ? "revisar" : "ok");
       setMensaje(
         data.mensaje ||
           `${data.confirmadas.length} confirmadas automáticamente, ${data.pendientes.length} necesitan que confirmes.`,
       );
     } catch (err) {
+      setEstado("error");
       setMensaje((err as Error).message);
     } finally {
       setCargando(false);
@@ -49,6 +53,7 @@ export function EscanerPerchero() {
   function escanearDeNuevo() {
     setEscaneando(true);
     setMensaje("");
+    setEstado(null);
   }
 
   return (
@@ -81,7 +86,26 @@ export function EscanerPerchero() {
         </Button>
       )}
 
-      {mensaje && <p className="text-sm text-muted-foreground">{mensaje}</p>}
+      {cargando && <p className="text-sm text-muted-foreground">{mensaje}</p>}
+
+      {!cargando && estado === "ok" && (
+        <div className="rounded-xl bg-green-600 text-white p-4 text-center">
+          <div className="text-3xl">✅ Bien</div>
+          <p className="text-sm mt-1">{mensaje}</p>
+        </div>
+      )}
+      {!cargando && estado === "revisar" && (
+        <div className="rounded-xl bg-amber-500 text-white p-4 text-center">
+          <div className="text-2xl">⚠️ Revisar</div>
+          <p className="text-sm mt-1">{mensaje}</p>
+        </div>
+      )}
+      {!cargando && estado === "error" && (
+        <div className="rounded-xl bg-red-600 text-white p-4 text-center">
+          <div className="text-2xl">❌ Error</div>
+          <p className="text-sm mt-1">{mensaje}</p>
+        </div>
+      )}
 
       {confirmadas.length > 0 && (
         <div>
