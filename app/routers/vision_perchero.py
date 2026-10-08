@@ -11,7 +11,7 @@ from app.services.eventos import registrar_evento
 
 router = APIRouter(prefix="/vision", tags=["vision"])
 
-UMBRAL_CONFIANZA = 0.9
+UMBRAL_CONFIANZA = 0.6
 MAX_CANDIDATAS = 15
 
 
