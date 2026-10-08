@@ -12,6 +12,18 @@ router = APIRouter(prefix="/vision", tags=["vision"])
 UMBRAL_CONFIANZA = 0.6
 MAX_CANDIDATAS = 30
 
+# Solo las prendas que cuelgan las ve la cámara del closet. Short, pantalones, zapatos y accesorios
+# no se escanean: su estado nunca lo cambia el escaneo.
+TIPOS_COLGADOS = (
+    "poler", "camis", "chaquet", "abrig", "chalec", "suéter", "sueter",
+    "sudader", "parka", "blus", "vestid", "cardigan", "jersey",
+)
+
+
+def _cuelga(tipo: str) -> bool:
+    t = (tipo or "").lower()
+    return any(k in t for k in TIPOS_COLGADOS)
+
 
 @router.post("/escanear-closet")
 async def escanear_closet(archivo: UploadFile = File(...)):
@@ -25,12 +37,11 @@ async def escanear_closet(archivo: UploadFile = File(...)):
         raise HTTPException(400, "La imagen es muy pesada (máx 8MB)")
 
     with db_session() as conn:
-        prendas = [dict(c) for c in conn.execute(
-            "SELECT id, tipo, color, foto_path FROM prenda ORDER BY id LIMIT ?", (MAX_CANDIDATAS,)
-        ).fetchall()]
+        todas = [dict(c) for c in conn.execute("SELECT id, tipo, color, foto_path FROM prenda ORDER BY id").fetchall()]
+    prendas = [p for p in todas if _cuelga(p["tipo"])][:MAX_CANDIDATAS]
 
     if not prendas:
-        return {"disponibles": [], "fuera": [], "dudosas": [], "mensaje": "Todavía no hay prendas guardadas."}
+        return {"disponibles": [], "fuera": [], "dudosas": [], "mensaje": "Todavía no hay prendas colgables guardadas (polerones, camisas, poleras, chaquetas)."}
 
     try:
         coincidencias = vision_closet.reconocer_closet(contenido, archivo.content_type, prendas)
