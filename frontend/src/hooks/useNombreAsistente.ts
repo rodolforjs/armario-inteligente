@@ -50,6 +50,7 @@ export function useNombreAsistente({
 }) {
   const [estado, setEstado] = useState<EstadoNombre>("apagado");
   const [oido, setOido] = useState("");
+  const mantenerRef = useRef<(() => void) | null>(null);
   const onComandoRef = useRef(onComando);
   onComandoRef.current = onComando;
 
@@ -72,10 +73,10 @@ export function useNombreAsistente({
       if (window.speechSynthesis.speaking) ultimoHablar = Date.now();
     }, 150);
 
-    function entrarAtento() {
+    function entrarAtento(conPitido = true) {
       atentoHasta = Date.now() + VENTANA_ATENTO_MS;
       setEstado("atento");
-      pitido();
+      if (conPitido) pitido();
       clearTimeout(timerAtento);
       timerAtento = setTimeout(() => {
         if (vivo) setEstado("esperando");
@@ -140,9 +141,11 @@ export function useNombreAsistente({
       }
     }
 
+    mantenerRef.current = () => entrarAtento(false);
     iniciar();
 
     return () => {
+      mantenerRef.current = null;
       vivo = false;
       clearInterval(sondeo);
       clearTimeout(timerAtento);
@@ -160,5 +163,10 @@ export function useNombreAsistente({
     };
   }, [activo, nombre]);
 
-  return { estado, oido, disponible: Boolean(Ctor) };
+  // Abre una ventana de diálogo: la siguiente frase se toma como comando sin repetir el nombre.
+  function mantenerAtento() {
+    mantenerRef.current?.();
+  }
+
+  return { estado, oido, disponible: Boolean(Ctor), mantenerAtento };
 }

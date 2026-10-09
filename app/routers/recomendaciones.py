@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from app.db import db_session
 from app.services.eventos import registrar_evento
-from app.services.recomendacion import MODOS, _categoria_prenda, generar_recomendacion
+from app.services.recomendacion import MODOS, _aplicar_preferencias, _categoria_prenda, generar_recomendacion
 
 router = APIRouter(prefix="/recomendaciones", tags=["recomendaciones"])
 
@@ -18,6 +18,7 @@ class SolicitudRecomendacion(BaseModel):
     modo: str = "exploratorio"  # "exploratorio" | "pocas_opciones" | "preciso"
     ocasion: str | None = None
     texto_libre: str | None = None
+    preferencias: dict | None = None
 
 
 class AceptarConjunto(BaseModel):
@@ -51,7 +52,9 @@ def solicitar_recomendacion(solicitud: SolicitudRecomendacion):
         if not disponibles:
             raise HTTPException(409, "No hay prendas disponibles en el armario ahora mismo")
 
-        resultado = generar_recomendacion(disponibles, solicitud.ocasion, solicitud.texto_libre, solicitud.modo)
+        resultado = generar_recomendacion(
+            disponibles, solicitud.ocasion, solicitud.texto_libre, solicitud.modo, solicitud.preferencias
+        )
 
         if not resultado["conjuntos"]:
             cats = [_categoria_prenda(p["tipo"]) for p in disponibles]
@@ -60,6 +63,8 @@ def solicitar_recomendacion(solicitud: SolicitudRecomendacion):
                 faltan.append("ropa de arriba (polera, camisa, polerón...)")
             if "completo" not in cats and "inferior" not in cats:
                 faltan.append("ropa de abajo (pantalón, short...)")
+            if solicitud.preferencias and not faltan:
+                raise HTTPException(409, "Con ese criterio no pude armar ningún conjunto. Prueba con otro ajuste.")
             detalle = f" Te falta {' y '.join(faltan)} disponible: revisa que no esté marcada como fuera del closet." if faltan else ""
             raise HTTPException(409, f"No se pudo armar ningún conjunto con lo que hay disponible.{detalle}")
 
@@ -67,8 +72,9 @@ def solicitar_recomendacion(solicitud: SolicitudRecomendacion):
         ahora = datetime.now(timezone.utc).isoformat()
         conn.execute(
             """INSERT INTO sesion_recomendacion
-               (id, ocasion, texto_libre, modo, clima_json, conjuntos_json, rechazos_count, estado, creado_en)
-               VALUES (?, ?, ?, ?, ?, ?, 0, 'en_curso', ?)""",
+               (id, ocasion, texto_libre, modo, clima_json, conjuntos_json, rechazos_count, estado, creado_en,
+                preferencias_json)
+               VALUES (?, ?, ?, ?, ?, ?, 0, 'en_curso', ?, ?)""",
             (
                 sesion_id,
                 solicitud.ocasion,
@@ -77,6 +83,7 @@ def solicitar_recomendacion(solicitud: SolicitudRecomendacion):
                 json.dumps(resultado["clima"], ensure_ascii=False),
                 json.dumps(resultado["conjuntos"], ensure_ascii=False),
                 ahora,
+                json.dumps(solicitud.preferencias, ensure_ascii=False) if solicitud.preferencias else None,
             ),
         )
         registrar_evento(
@@ -133,6 +140,8 @@ def rechazar_prenda(sesion_id: str, rechazo: RechazarPrenda):
         ids_ya_usados = {pid for c in conjuntos for pid in c["prenda_ids"]}
         disponibles = _prendas_disponibles(conn)
         candidatas = [p for p in disponibles if p["id"] not in ids_ya_usados]
+        if sesion.get("preferencias_json"):
+            candidatas = _aplicar_preferencias(candidatas, json.loads(sesion["preferencias_json"]))
 
         pieza_a_reemplazar = next(p for p in conjunto["piezas"] if p["id"] == rechazo.prenda_id)
         tipo_objetivo = pieza_a_reemplazar["tipo"]
@@ -186,7 +195,10 @@ def rechazar_conjunto(sesion_id: str):
             return {"sesion_id": sesion_id, "estado": "modo_libre"}
 
         disponibles = _prendas_disponibles(conn)
-        resultado = generar_recomendacion(disponibles, sesion["ocasion"], sesion["texto_libre"], sesion["modo"])
+        preferencias = json.loads(sesion["preferencias_json"]) if sesion.get("preferencias_json") else None
+        resultado = generar_recomendacion(
+            disponibles, sesion["ocasion"], sesion["texto_libre"], sesion["modo"], preferencias
+        )
         if not resultado["conjuntos"]:
             raise HTTPException(409, "No se pudo armar otro conjunto con el inventario disponible")
 

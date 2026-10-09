@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { api, type Clima, type Conjunto, type Modo } from "@/lib/api";
+import { api, type Clima, type Conjunto, type Modo, type Preferencias } from "@/lib/api";
 import { mensajeAmigable } from "@/lib/errores";
 
 const DURACION_AVISO_MS = 6000;
@@ -11,6 +11,10 @@ export function useCombinaciones() {
   const [buscando, setBuscando] = useState(false);
   const [aviso, setAviso] = useState("");
   const [confirmado, setConfirmado] = useState<Conjunto | null>(null);
+  const pedidoActual = useRef<{ ocasion: string | null; preferencias: Preferencias | null }>({
+    ocasion: null,
+    preferencias: null,
+  });
   const timeoutAviso = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function mostrarAviso(texto: string, autoLimpiar = true) {
@@ -21,12 +25,18 @@ export function useCombinaciones() {
     }
   }
 
-  async function verCombinaciones(modo: Modo = "exploratorio", ocasion: string | null = null, textoLibre: string | null = null) {
+  async function verCombinaciones(
+    modo: Modo = "exploratorio",
+    ocasion: string | null = null,
+    textoLibre: string | null = null,
+    preferencias: Preferencias | null = null,
+  ) {
     setBuscando(true);
     setAviso("");
     setConjuntos([]);
+    pedidoActual.current = { ocasion, preferencias };
     try {
-      const data = await api.pedirRecomendacion({ modo, ocasion, texto_libre: textoLibre });
+      const data = await api.pedirRecomendacion({ modo, ocasion, texto_libre: textoLibre, preferencias });
       setSesionId(data.sesion_id);
       setClima(data.clima);
       setConjuntos(data.conjuntos);
@@ -103,6 +113,7 @@ export function useCombinaciones() {
 
   return {
     sesionId,
+    pedidoActual,
     conjuntos,
     clima,
     buscando,

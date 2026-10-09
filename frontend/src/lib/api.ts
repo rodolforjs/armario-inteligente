@@ -51,6 +51,12 @@ export type Clima = {
   categoria: string;
 };
 
+export type Preferencias = {
+  evitar_colores: string[];
+  preferir_colores: string[];
+  abrigo: "mas_abrigado" | "mas_liviano" | null;
+};
+
 export type Modo = "exploratorio" | "pocas_opciones" | "preciso";
 
 export type AccionVoz =
@@ -64,6 +70,7 @@ export type AccionVoz =
   | "confirmar_conjunto"
   | "cambiar_prenda"
   | "otras_opciones"
+  | "responder"
   | "preguntar"
   | "desconocido";
 
@@ -79,6 +86,8 @@ export type RespuestaVoz = {
   accion: AccionVoz;
   parametro?: string;
   ocasion?: "casual" | "formal" | "deportivo" | null;
+  preferencias?: Preferencias | null;
+  seguir_escuchando?: boolean;
   respuesta_hablada: string;
 };
 
@@ -133,7 +142,12 @@ export const api = {
 
   borrarPrenda: (id: number) => fetch(`/prendas/${id}`, { method: "DELETE" }).then(parseOrThrow),
 
-  pedirRecomendacion: (payload: { modo: Modo; ocasion: string | null; texto_libre: string | null }) =>
+  pedirRecomendacion: (payload: {
+    modo: Modo;
+    ocasion: string | null;
+    texto_libre: string | null;
+    preferencias?: Preferencias | null;
+  }) =>
     fetch("/recomendaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

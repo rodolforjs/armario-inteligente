@@ -33,6 +33,7 @@ SCHEMA_STATEMENTS = [
     "ALTER TABLE prenda ADD COLUMN IF NOT EXISTS marca TEXT",
     "ALTER TABLE prenda ADD COLUMN IF NOT EXISTS material TEXT",
     "ALTER TABLE prenda ADD COLUMN IF NOT EXISTS temporada TEXT",
+    "ALTER TABLE sesion_recomendacion ADD COLUMN IF NOT EXISTS preferencias_json TEXT",
     "ALTER TABLE zona ADD COLUMN IF NOT EXISTS tipo TEXT NOT NULL DEFAULT 'colgador'",
     "UPDATE zona SET tipo = 'cajon' WHERE id = 'zona_3' AND nombre = 'Cajón'",
     """

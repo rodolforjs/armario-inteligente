@@ -54,8 +54,49 @@ def _dias_desde_uso(fecha_ultimo_uso: str | None) -> int:
     return (datetime.now(timezone.utc) - dt).days
 
 
-def _score_prenda(prenda: dict, clima_categoria: str, ocasion: str | None) -> float:
+ABRIGO_NIVEL = {"liviano": 0, "medio": 1, "abrigado": 2}
+
+
+def _aplicar_preferencias(prendas: list[dict], preferencias: dict | None) -> list[dict]:
+    """Descarta las prendas de colores que la persona pidió evitar."""
+    evitar = {_normalizar(c) for c in (preferencias or {}).get("evitar_colores") or []}
+    if not evitar:
+        return prendas
+    return [p for p in prendas if not any(e in _normalizar(p["color"]) for e in evitar)]
+
+
+def _score_preferencias(prenda: dict, preferencias: dict | None) -> float:
+    if not preferencias:
+        return 0.0
     score = 0.0
+    color = _normalizar(prenda["color"])
+    if any(_normalizar(c) in color for c in preferencias.get("preferir_colores") or []):
+        score += 2.0
+    nivel = ABRIGO_NIVEL.get(prenda["abrigo"], 1)
+    if preferencias.get("abrigo") == "mas_abrigado":
+        score += (nivel - 1) * 2.0
+    elif preferencias.get("abrigo") == "mas_liviano":
+        score += (1 - nivel) * 2.0
+    return score
+
+
+def describir_preferencias(preferencias: dict | None) -> str:
+    if not preferencias:
+        return ""
+    partes = []
+    if preferencias.get("evitar_colores"):
+        partes.append("evitar " + ", ".join(preferencias["evitar_colores"]))
+    if preferencias.get("preferir_colores"):
+        partes.append("preferir " + ", ".join(preferencias["preferir_colores"]))
+    if preferencias.get("abrigo") == "mas_abrigado":
+        partes.append("más abrigado")
+    if preferencias.get("abrigo") == "mas_liviano":
+        partes.append("más liviano")
+    return "; ".join(partes)
+
+
+def _score_prenda(prenda: dict, clima_categoria: str, ocasion: str | None, preferencias: dict | None = None) -> float:
+    score = _score_preferencias(prenda, preferencias)
     if prenda["abrigo"] in ABRIGO_POR_CLIMA.get(clima_categoria, []):
         score += 2.0
     if ocasion and _normalizar(prenda["formalidad"]) == _normalizar(ocasion):
@@ -65,7 +106,7 @@ def _score_prenda(prenda: dict, clima_categoria: str, ocasion: str | None) -> fl
     return score
 
 
-def _armar_conjuntos_candidatos(prendas: list[dict], clima_categoria: str, ocasion: str | None):
+def _armar_conjuntos_candidatos(prendas: list[dict], clima_categoria: str, ocasion: str | None, preferencias: dict | None = None):
     superiores = [p for p in prendas if _categoria_prenda(p["tipo"]) == "superior"]
     inferiores = [p for p in prendas if _categoria_prenda(p["tipo"]) == "inferior"]
     completos = [p for p in prendas if _categoria_prenda(p["tipo"]) == "completo"]
@@ -73,11 +114,11 @@ def _armar_conjuntos_candidatos(prendas: list[dict], clima_categoria: str, ocasi
     candidatos = []
     for sup, inf in product(superiores, inferiores):
         piezas = [sup, inf]
-        score = sum(_score_prenda(p, clima_categoria, ocasion) for p in piezas)
+        score = sum(_score_prenda(p, clima_categoria, ocasion, preferencias) for p in piezas)
         candidatos.append({"piezas": piezas, "score": score})
     for comp in completos:
         piezas = [comp]
-        score = sum(_score_prenda(p, clima_categoria, ocasion) for p in piezas)
+        score = sum(_score_prenda(p, clima_categoria, ocasion, preferencias) for p in piezas)
         candidatos.append({"piezas": piezas, "score": score})
 
     candidatos.sort(key=lambda c: c["score"], reverse=True)
@@ -155,15 +196,23 @@ def _generar_razones(conjuntos: list[dict], clima: dict, ocasion: str | None, te
     return fallback
 
 
-def generar_recomendacion(prendas_disponibles: list[dict], ocasion: str | None, texto_libre: str | None, modo: str) -> dict:
+def generar_recomendacion(
+    prendas_disponibles: list[dict],
+    ocasion: str | None,
+    texto_libre: str | None,
+    modo: str,
+    preferencias: dict | None = None,
+) -> dict:
     if modo not in MODOS:
         raise ValueError(f"Modo inválido: {modo}")
     cantidad = MODOS[modo]
 
     clima = clima_service.obtener_clima_actual()
-    candidatos = _armar_conjuntos_candidatos(prendas_disponibles, clima["categoria"], ocasion)
+    prendas = _aplicar_preferencias(prendas_disponibles, preferencias)
+    candidatos = _armar_conjuntos_candidatos(prendas, clima["categoria"], ocasion, preferencias)
     seleccionados = _seleccionar_diversos(candidatos, cantidad)
-    razones = _generar_razones(seleccionados, clima, ocasion, texto_libre)
+    pedido = "; ".join(x for x in [texto_libre or "", describir_preferencias(preferencias)] if x) or None
+    razones = _generar_razones(seleccionados, clima, ocasion, pedido)
 
     conjuntos = []
     for c, razon in zip(seleccionados, razones):

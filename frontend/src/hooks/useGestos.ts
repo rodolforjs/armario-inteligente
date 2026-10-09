@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { GestureRecognizer } from "@mediapipe/tasks-vision";
 
-export type Gesto = "confirmar" | "rechazar" | "siguiente" | "anterior" | "voz";
+export type Gesto = "confirmar" | "rechazar" | "siguiente" | "anterior" | "voz" | "silencio";
 
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.0/wasm";
 const MODELO_URL =
@@ -20,6 +20,7 @@ const ESTATICOS: Record<string, Gesto> = {
   Thumb_Up: "confirmar",
   Thumb_Down: "rechazar",
   Closed_Fist: "voz",
+  Pointing_Up: "silencio", // dedo en alto: "shh", corta al asistente
 };
 
 export function useGestos({ activo, onGesto }: { activo: boolean; onGesto: (g: Gesto) => void }) {

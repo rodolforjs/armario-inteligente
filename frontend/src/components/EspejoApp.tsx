@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FondoEspejo } from "@/components/FondoEspejo";
 import { PantallaExito } from "@/components/PantallaExito";
 import { useAsistenteVoz } from "@/hooks/useAsistenteVoz";
@@ -6,6 +6,9 @@ import { useCombinaciones } from "@/hooks/useCombinaciones";
 import { useGestos, type Gesto } from "@/hooks/useGestos";
 import { useNombreAsistente } from "@/hooks/useNombreAsistente";
 import { usePersistido } from "@/hooks/usePersistido";
+import { AjustesAsistente } from "@/components/AjustesAsistente";
+import { AJUSTES_VOZ_BASE, type AjustesVoz } from "@/lib/voz";
+import type { RespuestaVoz } from "@/lib/api";
 import { PanelInsights } from "@/components/PanelInsights";
 import { PanelOpcion } from "@/components/PanelOpcion";
 import { Boton, ETIQUETA, Flecha, VIDRIO } from "@/components/espejoUi";
@@ -19,12 +22,16 @@ export function EspejoApp() {
   const [gestosActivos, setGestosActivos] = usePersistido("espejo.gestos", false);
   const [nombreActivo, setNombreActivo] = usePersistido("espejo.llamarPorNombre", false);
   const [nombre, setNombre] = usePersistido("espejo.nombre", "Alba");
+  const [tono, setTono] = usePersistido("espejo.tono", "cercano");
+  const [ajustesVoz, setAjustesVoz] = usePersistido<AjustesVoz>("espejo.vozAjustes", AJUSTES_VOZ_BASE);
+  const despuesDeHablar = useRef<(resp: RespuestaVoz) => void>(() => {});
   const final = vista === "final";
   const [verInsights, setVerInsights] = useState(false);
   const [seleccion, setSeleccion] = useState(0);
 
   const {
     sesionId,
+    pedidoActual,
     conjuntos,
     clima,
     buscando,
@@ -47,24 +54,36 @@ export function EspejoApp() {
     respuestaAsistente,
     alMicrofono,
     procesarTexto,
+    silenciar,
     reiniciarHistorial,
     vozDisponible,
   } = useAsistenteVoz({
     etapaActual,
-    contextoExtra: () => ({ piezas_conjunto: conjuntos[0]?.piezas.map((p) => p.tipo) ?? [] }),
+    persona: () => ({ nombre, tono }),
+    alTerminarDeHablar: (resp) => despuesDeHablar.current(resp),
+    contextoExtra: () => {
+      const visto = conjuntos[Math.min(seleccion, conjuntos.length - 1)];
+      return {
+        piezas_conjunto: visto?.piezas.map((p) => `${p.tipo} ${p.color}`) ?? [],
+        razon_conjunto: visto?.razon ?? null,
+        ocasion_actual: pedidoActual.current.ocasion,
+        preferencias_actuales: pedidoActual.current.preferencias,
+      };
+    },
     onAccion: (resp, texto) => {
+      const idx = Math.min(seleccion, conjuntos.length - 1);
       switch (resp.accion) {
         case "ver_combinaciones":
-          verCombinaciones("preciso", resp.ocasion ?? null, texto);
+          verCombinaciones("preciso", resp.ocasion ?? pedidoActual.current.ocasion, texto, resp.preferencias ?? null);
           break;
         case "confirmar_conjunto":
-          aceptar(0);
+          aceptar(idx);
           reiniciarHistorial();
           break;
         case "cambiar_prenda": {
           const tipoBuscado = (resp.parametro || "").toLowerCase();
-          const pieza = conjuntos[0]?.piezas.find((p) => p.tipo.toLowerCase().includes(tipoBuscado));
-          if (pieza) cambiarPrenda(0, pieza.id);
+          const pieza = conjuntos[idx]?.piezas.find((p) => p.tipo.toLowerCase().includes(tipoBuscado));
+          if (pieza) cambiarPrenda(idx, pieza.id);
           break;
         }
         case "otras_opciones":
@@ -79,6 +98,10 @@ export function EspejoApp() {
   }, [conjuntos]);
 
   function alGesto(g: Gesto) {
+    if (g === "silencio") {
+      silenciar();
+      return;
+    }
     if (confirmado || buscando) return;
     switch (g) {
       case "confirmar":
@@ -104,11 +127,16 @@ export function EspejoApp() {
     onGesto: alGesto,
   });
 
-  const { estado: estadoNombre, oido, disponible: nombreDisponible } = useNombreAsistente({
+  const { estado: estadoNombre, oido, disponible: nombreDisponible, mantenerAtento } = useNombreAsistente({
     activo: nombreActivo && !escuchando,
     nombre,
     onComando: procesarTexto,
   });
+  // Conversación continua: tras hablar, deja abierta la escucha (por nombre) o reabre el micrófono si hizo una pregunta.
+  despuesDeHablar.current = (resp) => {
+    if (nombreActivo) mantenerAtento();
+    else if (resp.seguir_escuchando) alMicrofono();
+  };
   const atento = estadoNombre === "atento" || escuchando;
 
   const hayConjuntos = conjuntos.length > 0;
@@ -210,23 +238,16 @@ export function EspejoApp() {
             {aviso && <p className="text-sm text-amber-200">{aviso}</p>}
 
             {!final && (
-              <div className="mt-auto flex flex-col gap-2">
-                <p className={ETIQUETA}>Pruebas · nombre</p>
-                <input
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  maxLength={20}
-                  aria-label="Nombre del asistente"
-                  className="bg-transparent border border-white/40 px-3 py-1.5 text-sm tracking-wide outline-none focus:border-white"
-                />
-                <p className="text-[11px] text-white/50 leading-snug">
-                  {nombreDisponible
-                    ? oido
-                      ? `Oído: “${oido}”`
-                      : "Activa “Llamar” y di el nombre; verás aquí lo que entiende."
-                    : "Este navegador no permite escucha continua."}
-                </p>
-              </div>
+              <AjustesAsistente
+                nombre={nombre}
+                onNombre={setNombre}
+                tono={tono}
+                onTono={setTono}
+                voz={ajustesVoz}
+                onVoz={setAjustesVoz}
+                oido={oido}
+                escuchaDisponible={nombreDisponible}
+              />
             )}
           </aside>
 
@@ -369,6 +390,7 @@ export function EspejoApp() {
                   <li>👎 sostener · otras opciones</li>
                   <li>👋 mover a los lados · pasar</li>
                   <li>✊ sostener · hablar</li>
+                  <li>☝️ sostener · silencio</li>
                 </ul>
                 {modoEspejo && (
                   <p className="text-[10px] text-white/50 max-w-48 leading-tight">

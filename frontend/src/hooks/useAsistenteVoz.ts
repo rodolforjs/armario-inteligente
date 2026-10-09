@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { api, type RespuestaVoz } from "@/lib/api";
 import { mensajeAmigable } from "@/lib/errores";
-import { escuchar, hablar, vozDisponible } from "@/lib/voz";
+import { callar, escuchar, hablar, vozDisponible } from "@/lib/voz";
 
 type TurnoHistorial = { rol: "usuario" | "asistente"; texto: string };
 
@@ -10,11 +10,15 @@ const MAX_TURNOS = 10;
 export function useAsistenteVoz({
   etapaActual,
   contextoExtra,
+  persona,
   onAccion,
+  alTerminarDeHablar,
 }: {
   etapaActual: () => string;
   contextoExtra: () => Record<string, unknown>;
+  persona?: () => { nombre: string; tono: string };
   onAccion: (resp: RespuestaVoz, texto: string) => void;
+  alTerminarDeHablar?: (resp: RespuestaVoz) => void;
 }) {
   const [escuchando, setEscuchando] = useState(false);
   const [transcripcion, setTranscripcion] = useState("");
@@ -28,11 +32,12 @@ export function useAsistenteVoz({
       const resp = await api.comandoVoz(texto, {
         etapa: etapaActual(),
         historial: historialRef.current.slice(-MAX_TURNOS),
+        persona: persona?.(),
         ...contextoExtra(),
       });
       setRespuestaAsistente(resp.respuesta_hablada);
       historialRef.current.push({ rol: "asistente", texto: resp.respuesta_hablada });
-      hablar(resp.respuesta_hablada);
+      hablar(resp.respuesta_hablada, () => alTerminarDeHablar?.(resp));
       if (resp.accion !== "preguntar") {
         onAccion(resp, texto);
       }
@@ -61,6 +66,7 @@ export function useAsistenteVoz({
     respuestaAsistente,
     alMicrofono,
     procesarTexto: manejarComandoVoz,
+    silenciar: callar,
     reiniciarHistorial,
     vozDisponible,
   };
