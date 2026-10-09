@@ -37,6 +37,13 @@ export type Conjunto = {
   razon: string;
 };
 
+export type EventoLog = {
+  id: number;
+  timestamp: string;
+  tipo: string;
+  prenda_id: number | null;
+};
+
 export type Clima = {
   temperatura_c: number;
   precipitacion_mm: number;
@@ -113,6 +120,8 @@ export const api = {
     }>;
   },
 
+  listarEventos: (limite = 300) =>
+    fetch(`/eventos?limite=${limite}`).then(parseOrThrow) as Promise<EventoLog[]>,
   listarPrendas: () => fetch("/prendas").then(parseOrThrow) as Promise<Prenda[]>,
 
   editarPrenda: (id: number, cambios: Partial<Prenda>) =>

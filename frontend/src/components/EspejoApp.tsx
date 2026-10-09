@@ -6,6 +6,7 @@ import { useCombinaciones } from "@/hooks/useCombinaciones";
 import { useGestos, type Gesto } from "@/hooks/useGestos";
 import { useNombreAsistente } from "@/hooks/useNombreAsistente";
 import { usePersistido } from "@/hooks/usePersistido";
+import { PanelInsights } from "@/components/PanelInsights";
 import { PanelOpcion } from "@/components/PanelOpcion";
 import { Boton, ETIQUETA, Flecha, VIDRIO } from "@/components/espejoUi";
 
@@ -19,6 +20,7 @@ export function EspejoApp() {
   const [nombreActivo, setNombreActivo] = usePersistido("espejo.llamarPorNombre", false);
   const [nombre, setNombre] = usePersistido("espejo.nombre", "Alba");
   const final = vista === "final";
+  const [verInsights, setVerInsights] = useState(false);
   const [seleccion, setSeleccion] = useState(0);
 
   const {
@@ -145,6 +147,19 @@ export function EspejoApp() {
               </Boton>
             </>
           )}
+          <button
+            type="button"
+            onClick={() => setVerInsights((v) => !v)}
+            aria-label="Insights del closet"
+            title="Insights del closet"
+            className={`w-8 h-8 flex items-center justify-center border transition-colors ${
+              verInsights ? "bg-white text-black border-white" : "border-white/50 text-white hover:bg-white hover:text-black"
+            }`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+            </svg>
+          </button>
           <Boton pequeno onClick={() => setVista(final ? "pruebas" : "final")}>
             {final ? "Ir a vista pruebas" : "Ir a vista final"}
           </Boton>
@@ -365,6 +380,8 @@ export function EspejoApp() {
           )}
         </main>
       )}
+
+      {verInsights && <PanelInsights clima={clima} onCerrar={() => setVerInsights(false)} />}
 
       {/* ---------- Vista previa de gestos (un solo <video>, fijo en la esquina) ---------- */}
       {gestosActivos && !confirmado && (
