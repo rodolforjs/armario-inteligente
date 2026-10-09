@@ -146,7 +146,7 @@ export function EspejoApp() {
             </>
           )}
           <Boton pequeno onClick={() => setVista(final ? "pruebas" : "final")}>
-            {final ? "Vista final" : "Vista pruebas"}
+            {final ? "Ir a vista pruebas" : "Ir a vista final"}
           </Boton>
         </div>
       </header>
