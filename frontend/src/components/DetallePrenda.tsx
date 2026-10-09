@@ -47,7 +47,7 @@ export function DetallePrenda({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onCerrar}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-40" onClick={onCerrar}>
       <Card className="max-w-sm w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <img src={prenda.foto_path} alt={prenda.tipo} className="w-full h-56 object-cover" />
         <CardContent className="flex flex-col gap-3 pt-4">
@@ -103,7 +103,7 @@ export function DetallePrenda({
               <div className="flex flex-col gap-1.5">
                 <Label>Formalidad</Label>
                 <Select value={valores.formalidad} onValueChange={(v) => setValores({ ...valores, formalidad: v })}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -116,7 +116,7 @@ export function DetallePrenda({
               <div className="flex flex-col gap-1.5">
                 <Label>Abrigo</Label>
                 <Select value={valores.abrigo} onValueChange={(v) => setValores({ ...valores, abrigo: v })}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -145,7 +145,7 @@ export function DetallePrenda({
               <div className="flex flex-col gap-1.5">
                 <Label>Temporada</Label>
                 <Select value={valores.temporada || "ninguna"} onValueChange={(v) => setValores({ ...valores, temporada: v === "ninguna" ? "" : v })}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="— sin especificar —" />
                   </SelectTrigger>
                   <SelectContent>
@@ -160,7 +160,7 @@ export function DetallePrenda({
               <div className="flex flex-col gap-1.5">
                 <Label>Estado</Label>
                 <Select value={valores.estado} onValueChange={(v) => setValores({ ...valores, estado: v as Prenda["estado"] })}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from app.db import db_session
 from app.services.eventos import registrar_evento
-from app.services.recomendacion import MODOS, generar_recomendacion
+from app.services.recomendacion import MODOS, _categoria_prenda, generar_recomendacion
 
 router = APIRouter(prefix="/recomendaciones", tags=["recomendaciones"])
 
@@ -54,7 +54,14 @@ def solicitar_recomendacion(solicitud: SolicitudRecomendacion):
         resultado = generar_recomendacion(disponibles, solicitud.ocasion, solicitud.texto_libre, solicitud.modo)
 
         if not resultado["conjuntos"]:
-            raise HTTPException(409, "No se pudo armar ningún conjunto con el inventario disponible")
+            cats = [_categoria_prenda(p["tipo"]) for p in disponibles]
+            faltan = []
+            if "completo" not in cats and "superior" not in cats:
+                faltan.append("ropa de arriba (polera, camisa, polerón...)")
+            if "completo" not in cats and "inferior" not in cats:
+                faltan.append("ropa de abajo (pantalón, short...)")
+            detalle = f" Te falta {' y '.join(faltan)} disponible: revisa que no esté marcada como fuera del closet." if faltan else ""
+            raise HTTPException(409, f"No se pudo armar ningún conjunto con lo que hay disponible.{detalle}")
 
         sesion_id = uuid.uuid4().hex
         ahora = datetime.now(timezone.utc).isoformat()
