@@ -8,9 +8,10 @@ const MODELO_URL =
   "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task";
 
 const MANTENER_MS = 700; // un gesto estático debe sostenerse para dispararse (evita falsos positivos)
-const ENFRIAMIENTO_MS = 1500;
-const VENTANA_SWIPE_MS = 450;
-const DESPLAZAMIENTO_SWIPE = 0.28; // fracción del ancho de la imagen
+const ENFRIAMIENTO_MS = 1500; // tras un gesto estático (confirmar/rechazar/voz)
+const ENFRIAMIENTO_SWIPE_MS = 600; // deslizar debe poder repetirse rápido, como pasar fotos
+const VENTANA_SWIPE_MS = 400;
+const DESPLAZAMIENTO_SWIPE = 0.18; // fracción del ancho de la imagen
 const CONFIANZA_MIN = 0.6;
 const INTERVALO_MS = 66; // ~15 fps, de sobra para gestos y liviano para el equipo
 
@@ -82,7 +83,7 @@ export function useGestos({ activo, onGesto }: { activo: boolean; onGesto: (g: G
       let trayectoria: { t: number; x: number }[] = [];
 
       function disparar(g: Gesto, ahora: number) {
-        bloqueadoHasta = ahora + ENFRIAMIENTO_MS;
+        bloqueadoHasta = ahora + (g === "siguiente" || g === "anterior" ? ENFRIAMIENTO_SWIPE_MS : ENFRIAMIENTO_MS);
         trayectoria = [];
         gestoActual = "";
         setProgreso(0);
@@ -106,10 +107,13 @@ export function useGestos({ activo, onGesto }: { activo: boolean; onGesto: (g: G
 
         if (ahora < bloqueadoHasta) return;
 
-        // --- Deslizar: palma abierta moviéndose en horizontal (en coordenadas espejo, como se ve en pantalla) ---
-        const muñeca = res.landmarks[0]?.[0];
-        if (nombre === "Open_Palm" && muñeca) {
-          trayectoria.push({ t: ahora, x: 1 - muñeca.x });
+        // --- Deslizar en el aire: cualquier mano que se mueve en horizontal (en coordenadas espejo, como se ve
+        // en pantalla). Una mano en movimiento rara vez clasifica como "palma abierta", así que no lo exigimos;
+        // solo excluimos los gestos estáticos (pulgar, puño) para no confundirlos.
+        const mano = res.landmarks[0];
+        if (mano && !ESTATICOS[nombre]) {
+          const centro = (mano[0].x + mano[9].x) / 2; // muñeca + base del dedo medio: estable al mover la mano
+          trayectoria.push({ t: ahora, x: 1 - centro });
           trayectoria = trayectoria.filter((p) => ahora - p.t <= VENTANA_SWIPE_MS);
           const dx = trayectoria[trayectoria.length - 1].x - trayectoria[0].x;
           if (Math.abs(dx) >= DESPLAZAMIENTO_SWIPE) {

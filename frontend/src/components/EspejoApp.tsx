@@ -7,6 +7,9 @@ import { useAsistenteVoz } from "@/hooks/useAsistenteVoz";
 import { useCombinaciones } from "@/hooks/useCombinaciones";
 import { useGestos, type Gesto } from "@/hooks/useGestos";
 
+const CARD_PX = 288;
+const GAP_PX = 24;
+
 export function EspejoApp() {
   const [modoEspejo, setModoEspejo] = useState(false);
   const [gestosActivos, setGestosActivos] = useState(false);
@@ -69,10 +72,10 @@ export function EspejoApp() {
         if (conjuntos.length > 0) otrasOpciones();
         break;
       case "siguiente":
-        setSeleccion((i) => Math.min(i + 1, Math.max(conjuntos.length - 1, 0)));
+        if (conjuntos.length > 1) setSeleccion((i) => (i + 1) % conjuntos.length);
         break;
       case "anterior":
-        setSeleccion((i) => Math.max(i - 1, 0));
+        if (conjuntos.length > 1) setSeleccion((i) => (i - 1 + conjuntos.length) % conjuntos.length);
         break;
       case "voz":
         if (vozDisponible && !escuchando) alMicrofono();
@@ -133,7 +136,7 @@ export function EspejoApp() {
               </div>
             )}
             <p className="text-[10px] text-white/60 text-right max-w-48 leading-tight">
-              👍 confirmar · 👎 otras opciones · ✋ deslizar = siguiente/anterior · ✊ hablar
+              👍 confirmar · 👎 otras opciones · 👋 mueve la mano a los lados para pasar opciones · ✊ hablar
             </p>
           </div>
         )}
@@ -187,43 +190,77 @@ export function EspejoApp() {
             </p>
           )}
 
-          <div className="flex flex-wrap gap-4 justify-center max-w-2xl">
-            {conjuntos.map((c, idx) => (
-              <Card
-                key={idx}
-                onClick={() => setSeleccion(idx)}
-                className={`bg-white/90 backdrop-blur w-72 transition-all ${
-                  conjuntos.length > 1 && idx === seleccion ? "ring-4 ring-white scale-105" : "opacity-80"
-                }`}
-              >
-                <CardContent className="flex flex-col gap-3 pt-4">
-                  <div className="flex gap-2 overflow-x-auto">
-                    {c.piezas.map((p) => (
-                      <img key={p.id} src={p.foto_path} alt={p.tipo} className="w-20 h-20 object-cover rounded-lg" />
+          {conjuntos.length > 0 && (
+            <div className="flex flex-col items-center gap-3 w-full">
+              {/* Carrusel: la tarjeta seleccionada va al centro y el resto se desliza a los lados */}
+              <div className="relative w-full max-w-3xl overflow-hidden py-4">
+                <div
+                  className="flex items-stretch transition-transform duration-500 ease-out"
+                  style={{
+                    gap: `${GAP_PX}px`,
+                    width: `${conjuntos.length * CARD_PX + (conjuntos.length - 1) * GAP_PX}px`,
+                    marginLeft: "50%",
+                    transform: `translateX(${-(seleccion * (CARD_PX + GAP_PX) + CARD_PX / 2)}px)`,
+                  }}
+                >
+                  {conjuntos.map((c, idx) => (
+                    <Card
+                      key={idx}
+                      onClick={() => setSeleccion(idx)}
+                      style={{ width: `${CARD_PX}px` }}
+                      className={`shrink-0 bg-white/90 backdrop-blur transition-all duration-500 ${
+                        idx === seleccion ? "scale-100 opacity-100" : "scale-90 opacity-50"
+                      }`}
+                    >
+                      <CardContent className="flex flex-col gap-3 pt-4">
+                        <div className="flex gap-2 overflow-x-auto">
+                          {c.piezas.map((p) => (
+                            <img key={p.id} src={p.foto_path} alt={p.tipo} className="w-20 h-20 object-cover rounded-lg" />
+                          ))}
+                        </div>
+                        <p className="italic text-sm text-muted-foreground">{c.razon}</p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button type="button" size="sm" onClick={() => aceptar(idx)} disabled={buscando}>
+                            Confirmar
+                          </Button>
+                          {c.piezas.map((p) => (
+                            <Button
+                              key={p.id}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => cambiarPrenda(idx, p.id)}
+                              disabled={buscando}
+                            >
+                              Cambiar {p.tipo}
+                            </Button>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+              {conjuntos.length > 1 && (
+                <div className="flex items-center gap-3 text-white/80 drop-shadow">
+                  <button type="button" onClick={() => alGesto("anterior")} className="text-xl px-2" aria-label="Anterior">
+                    ◀
+                  </button>
+                  <div className="flex gap-1.5">
+                    {conjuntos.map((_, idx) => (
+                      <span
+                        key={idx}
+                        className={`h-2 rounded-full transition-all ${idx === seleccion ? "w-6 bg-white" : "w-2 bg-white/40"}`}
+                      />
                     ))}
                   </div>
-                  <p className="italic text-sm text-muted-foreground">{c.razon}</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" size="sm" onClick={() => aceptar(idx)} disabled={buscando}>
-                      Confirmar
-                    </Button>
-                    {c.piezas.map((p) => (
-                      <Button
-                        key={p.id}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => cambiarPrenda(idx, p.id)}
-                        disabled={buscando}
-                      >
-                        Cambiar {p.tipo}
-                      </Button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  <button type="button" onClick={() => alGesto("siguiente")} className="text-xl px-2" aria-label="Siguiente">
+                    ▶
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {conjuntos.length > 0 && (
             <Button type="button" variant="secondary" onClick={otrasOpciones} disabled={buscando} className="bg-white/10 backdrop-blur">
