@@ -225,6 +225,10 @@ def interpretar_comando(transcripcion: str, contexto: dict) -> dict:
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_schema", "json_schema": SCHEMA},
         )
-        return json.loads(response.choices[0].message.content)
+        resultado = json.loads(response.choices[0].message.content)
+        # Solo se reabre el micrófono cuando de verdad se espera una respuesta, no al ejecutar una acción.
+        if resultado["accion"] not in ("preguntar", "responder"):
+            resultado["seguir_escuchando"] = False
+        return resultado
     except Exception:
         return _interpretar_con_reglas(transcripcion, contexto)
