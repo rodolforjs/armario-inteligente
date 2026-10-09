@@ -174,7 +174,7 @@ export function EspejoApp() {
           <PantallaExito conjunto={confirmado} onCerrar={cerrarConfirmacion} oscuro />
         </div>
       ) : (
-        <main className="flex-1 grid grid-cols-[260px_1fr_260px] gap-6 px-10 py-6 min-h-0">
+        <main className="flex-1 grid grid-cols-[260px_minmax(0,1fr)_260px] gap-6 px-10 py-6 min-h-0">
           {/* ---------- Izquierda: voz ---------- */}
           <aside className="flex flex-col gap-4 min-h-0">
             <p className={ETIQUETA}>Asistente</p>
@@ -198,7 +198,7 @@ export function EspejoApp() {
           </aside>
 
           {/* ---------- Centro: opciones ---------- */}
-          <section className="flex flex-col items-center justify-center min-h-0 gap-6">
+          <section className="flex flex-col items-center justify-center min-h-0 min-w-0 gap-6">
             {buscando && !hayConjuntos && <p className={ETIQUETA}>Armando tu look…</p>}
 
             {!hayConjuntos && !buscando && !sesionId && (
