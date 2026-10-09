@@ -26,3 +26,8 @@ def subir_foto(contenido: bytes, content_type: str, extension: str) -> str:
         {"content-type": content_type},
     )
     return client.storage.from_(BUCKET).get_public_url(nombre_archivo)
+
+
+def borrar_foto(foto_url: str) -> None:
+    nombre = foto_url.split("?")[0].rsplit("/", 1)[-1]
+    get_client().storage.from_(BUCKET).remove([nombre])

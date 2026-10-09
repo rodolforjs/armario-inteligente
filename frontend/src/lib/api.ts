@@ -122,6 +122,8 @@ export const api = {
       body: JSON.stringify(cambios),
     }).then(parseOrThrow),
 
+  borrarPrenda: (id: number) => fetch(`/prendas/${id}`, { method: "DELETE" }).then(parseOrThrow),
+
   pedirRecomendacion: (payload: { modo: Modo; ocasion: string | null; texto_libre: string | null }) =>
     fetch("/recomendaciones", {
       method: "POST",

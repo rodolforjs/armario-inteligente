@@ -131,3 +131,20 @@ def editar_prenda(prenda_id: int, cambios: dict):
         registrar_evento(conn, "prenda_editada", prenda_id=prenda_id, payload=campos)
 
     return {"id": prenda_id, **campos}
+
+
+@router.delete("/{prenda_id}")
+def borrar_prenda(prenda_id: int):
+    with db_session() as conn:
+        fila = conn.execute("SELECT id, tipo, color, foto_path FROM prenda WHERE id = ?", (prenda_id,)).fetchone()
+        if fila is None:
+            raise HTTPException(404, "Prenda no encontrada")
+        conn.execute("DELETE FROM prenda WHERE id = ?", (prenda_id,))
+        registrar_evento(conn, "prenda_borrada", prenda_id=prenda_id, payload={"tipo": fila["tipo"], "color": fila["color"]})
+
+    # La foto es lo último: si el almacenamiento falla, la prenda ya no existe igual.
+    try:
+        storage.borrar_foto(fila["foto_path"])
+    except Exception:
+        pass
+    return {"ok": True, "id": prenda_id}

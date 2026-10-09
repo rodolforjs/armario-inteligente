@@ -19,6 +19,7 @@ export function DetallePrenda({
   const [editando, setEditando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const [confirmandoBorrado, setConfirmandoBorrado] = useState(false);
   const [valores, setValores] = useState({
     tipo: prenda.tipo,
     color: prenda.color,
@@ -42,6 +43,18 @@ export function DetallePrenda({
     } catch (err) {
       setError((err as Error).message);
     } finally {
+      setGuardando(false);
+    }
+  }
+
+  async function borrar() {
+    setGuardando(true);
+    setError("");
+    try {
+      await api.borrarPrenda(prenda.id);
+      onGuardado();
+    } catch (err) {
+      setError((err as Error).message);
       setGuardando(false);
     }
   }
@@ -81,14 +94,34 @@ export function DetallePrenda({
                   <dd>{prenda.veces_usada}</dd>
                 </div>
               </dl>
-              <div className="flex gap-2">
-                <Button type="button" onClick={() => setEditando(true)} className="flex-1">
-                  Editar
-                </Button>
-                <Button type="button" variant="outline" onClick={onCerrar}>
-                  Cerrar
-                </Button>
-              </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              {confirmandoBorrado ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm">¿Borrar esta prenda para siempre? No se puede deshacer.</p>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="danger" onClick={borrar} disabled={guardando} className="flex-1">
+                      Sí, borrar
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setConfirmandoBorrado(false)} disabled={guardando}>
+                      No
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Button type="button" onClick={() => setEditando(true)} className="flex-1">
+                      Editar
+                    </Button>
+                    <Button type="button" variant="outline" onClick={onCerrar}>
+                      Cerrar
+                    </Button>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmandoBorrado(true)}>
+                    🗑️ Borrar prenda
+                  </Button>
+                </div>
+              )}
             </>
           ) : (
             <>
