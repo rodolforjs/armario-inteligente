@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FondoEspejo } from "@/components/FondoEspejo";
 import { PantallaExito } from "@/components/PantallaExito";
 import { useAsistenteVoz } from "@/hooks/useAsistenteVoz";
 import { useCombinaciones } from "@/hooks/useCombinaciones";
+import { useGestos, type Gesto } from "@/hooks/useGestos";
 
 export function EspejoApp() {
   const [modoEspejo, setModoEspejo] = useState(false);
+  const [gestosActivos, setGestosActivos] = useState(false);
+  const [seleccion, setSeleccion] = useState(0);
 
   const {
     sesionId,
@@ -52,6 +55,36 @@ export function EspejoApp() {
     },
   });
 
+  useEffect(() => {
+    setSeleccion(0);
+  }, [conjuntos]);
+
+  function alGesto(g: Gesto) {
+    if (confirmado || buscando) return;
+    switch (g) {
+      case "confirmar":
+        if (conjuntos.length > 0) aceptar(Math.min(seleccion, conjuntos.length - 1));
+        break;
+      case "rechazar":
+        if (conjuntos.length > 0) otrasOpciones();
+        break;
+      case "siguiente":
+        setSeleccion((i) => Math.min(i + 1, Math.max(conjuntos.length - 1, 0)));
+        break;
+      case "anterior":
+        setSeleccion((i) => Math.max(i - 1, 0));
+        break;
+      case "voz":
+        if (vozDisponible && !escuchando) alMicrofono();
+        break;
+    }
+  }
+
+  const { videoRef, estado: estadoGestos, error: errorGestos, detectado, progreso, ultimo } = useGestos({
+    activo: gestosActivos,
+    onGesto: alGesto,
+  });
+
   return (
     <div className="relative min-h-screen text-white flex flex-col items-center justify-center p-8 gap-6">
       {modoEspejo ? (
@@ -70,6 +103,40 @@ export function EspejoApp() {
         >
           {modoEspejo ? "🪞 Modo espejo" : "🖥️ Modo UI"}
         </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setGestosActivos((v) => !v)}
+          className="bg-white/10 backdrop-blur"
+        >
+          {gestosActivos ? "🖐️ Gestos: activados" : "🖐️ Activar gestos"}
+        </Button>
+        {gestosActivos && (
+          <div className="flex flex-col items-end gap-1">
+            <video
+              ref={videoRef}
+              muted
+              playsInline
+              className="w-40 rounded-lg border border-white/30"
+              style={{ transform: "scaleX(-1)" }}
+            />
+            <p className="text-[11px] text-white/80 drop-shadow text-right max-w-48">
+              {estadoGestos === "cargando" && "Cargando gestos..."}
+              {estadoGestos === "error" && errorGestos}
+              {estadoGestos === "listo" &&
+                (ultimo ? `✔ ${ultimo}` : detectado ? `Veo: ${detectado}` : "Muestra tu mano a la cámara")}
+            </p>
+            {progreso > 0 && (
+              <div className="w-40 h-1.5 rounded bg-white/20 overflow-hidden">
+                <div className="h-full bg-white" style={{ width: `${progreso * 100}%` }} />
+              </div>
+            )}
+            <p className="text-[10px] text-white/60 text-right max-w-48 leading-tight">
+              👍 confirmar · 👎 otras opciones · ✋ deslizar = siguiente/anterior · ✊ hablar
+            </p>
+          </div>
+        )}
         {modoEspejo && (
           <p className="text-[11px] text-white/70 drop-shadow max-w-48 text-right">
             Cámara encendida solo como fondo visual. No se graba ni se envía a ningún servidor.
@@ -122,7 +189,13 @@ export function EspejoApp() {
 
           <div className="flex flex-wrap gap-4 justify-center max-w-2xl">
             {conjuntos.map((c, idx) => (
-              <Card key={idx} className="bg-white/90 backdrop-blur w-72">
+              <Card
+                key={idx}
+                onClick={() => setSeleccion(idx)}
+                className={`bg-white/90 backdrop-blur w-72 transition-all ${
+                  conjuntos.length > 1 && idx === seleccion ? "ring-4 ring-white scale-105" : "opacity-80"
+                }`}
+              >
                 <CardContent className="flex flex-col gap-3 pt-4">
                   <div className="flex gap-2 overflow-x-auto">
                     {c.piezas.map((p) => (
