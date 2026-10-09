@@ -8,8 +8,9 @@ const COLORES: Record<string, string> = {
   café: "#6b4a2f", beige: "#d8c7a8", crema: "#efe4cc", burdeo: "#6d1f2e",
 };
 
-function contar<T>(items: T[], clave: (t: T) => string) {
+function contar<T>(items: T[], clave0: (t: T) => string) {
   const m = new Map<string, number>();
+  const clave = (t: T) => clave0(t).trim().toLowerCase();
   for (const i of items) m.set(clave(i), (m.get(clave(i)) ?? 0) + 1);
   return [...m.entries()].sort((a, b) => b[1] - a[1]);
 }
