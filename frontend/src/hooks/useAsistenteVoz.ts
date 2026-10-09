@@ -55,5 +55,13 @@ export function useAsistenteVoz({
     historialRef.current = [];
   }
 
-  return { escuchando, transcripcion, respuestaAsistente, alMicrofono, reiniciarHistorial, vozDisponible };
+  return {
+    escuchando,
+    transcripcion,
+    respuestaAsistente,
+    alMicrofono,
+    procesarTexto: manejarComandoVoz,
+    reiniciarHistorial,
+    vozDisponible,
+  };
 }

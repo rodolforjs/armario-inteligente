@@ -1,67 +1,24 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { FondoEspejo } from "@/components/FondoEspejo";
 import { PantallaExito } from "@/components/PantallaExito";
 import { useAsistenteVoz } from "@/hooks/useAsistenteVoz";
 import { useCombinaciones } from "@/hooks/useCombinaciones";
 import { useGestos, type Gesto } from "@/hooks/useGestos";
+import { useNombreAsistente } from "@/hooks/useNombreAsistente";
+import { usePersistido } from "@/hooks/usePersistido";
+import { PanelOpcion } from "@/components/PanelOpcion";
+import { Boton, ETIQUETA, Flecha, VIDRIO } from "@/components/espejoUi";
 
 const CARD_PX = 460;
 const GAP_PX = 40;
 
-// Lenguaje visual del espejo: vidrio translúcido, líneas finas y tipografía mínima en mayúsculas.
-const VIDRIO = "bg-black/35 backdrop-blur-md border border-white/25";
-const ETIQUETA = "text-[11px] uppercase tracking-[0.22em] text-white/70";
-
-function Boton({
-  children,
-  onClick,
-  disabled,
-  primario,
-  pequeno,
-}: {
-  children: ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  primario?: boolean;
-  pequeno?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`uppercase tracking-[0.18em] border transition-colors disabled:opacity-40 disabled:pointer-events-none ${
-        pequeno ? "text-[10px] px-3 py-1.5" : "text-xs px-6 py-3"
-      } ${
-        primario
-          ? "bg-white text-black border-white hover:bg-white/85"
-          : "border-white/50 text-white hover:bg-white hover:text-black"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Flecha({ lado, onClick }: { lado: "izq" | "der"; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={lado === "izq" ? "Anterior" : "Siguiente"}
-      className="absolute top-1/2 -translate-y-1/2 z-10 w-12 h-12 flex items-center justify-center text-white/80 hover:text-white transition-colors"
-      style={lado === "izq" ? { left: 0 } : { right: 0 }}
-    >
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-        <path d={lado === "izq" ? "M15 4 7 12l8 8" : "m9 4 8 8-8 8"} />
-      </svg>
-    </button>
-  );
-}
-
 export function EspejoApp() {
-  const [modoEspejo, setModoEspejo] = useState(false);
-  const [gestosActivos, setGestosActivos] = useState(false);
+  const [vista, setVista] = usePersistido<"final" | "pruebas">("espejo.vista", "pruebas");
+  const [modoEspejo, setModoEspejo] = usePersistido("espejo.camara", false);
+  const [gestosActivos, setGestosActivos] = usePersistido("espejo.gestos", false);
+  const [nombreActivo, setNombreActivo] = usePersistido("espejo.llamarPorNombre", false);
+  const [nombre, setNombre] = usePersistido("espejo.nombre", "Alba");
+  const final = vista === "final";
   const [seleccion, setSeleccion] = useState(0);
 
   const {
@@ -82,7 +39,15 @@ export function EspejoApp() {
     return conjuntos.length > 0 ? "mostrando_combinaciones" : "inicio";
   }
 
-  const { escuchando, transcripcion, respuestaAsistente, alMicrofono, reiniciarHistorial, vozDisponible } = useAsistenteVoz({
+  const {
+    escuchando,
+    transcripcion,
+    respuestaAsistente,
+    alMicrofono,
+    procesarTexto,
+    reiniciarHistorial,
+    vozDisponible,
+  } = useAsistenteVoz({
     etapaActual,
     contextoExtra: () => ({ piezas_conjunto: conjuntos[0]?.piezas.map((p) => p.tipo) ?? [] }),
     onAccion: (resp, texto) => {
@@ -137,6 +102,13 @@ export function EspejoApp() {
     onGesto: alGesto,
   });
 
+  const { estado: estadoNombre, oido, disponible: nombreDisponible } = useNombreAsistente({
+    activo: nombreActivo && !escuchando,
+    nombre,
+    onComando: procesarTexto,
+  });
+  const atento = estadoNombre === "atento" || escuchando;
+
   const hayConjuntos = conjuntos.length > 0;
   const actual = hayConjuntos ? conjuntos[Math.min(seleccion, conjuntos.length - 1)] : null;
 
@@ -160,11 +132,21 @@ export function EspejoApp() {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <Boton pequeno onClick={() => setGestosActivos((v) => !v)}>
-            {gestosActivos ? "Gestos · on" : "Gestos · off"}
-          </Boton>
-          <Boton pequeno onClick={() => setModoEspejo((v) => !v)}>
-            {modoEspejo ? "Modo espejo" : "Modo UI"}
+          {!final && (
+            <>
+              <Boton pequeno onClick={() => setNombreActivo((v) => !v)}>
+                {nombreActivo ? `Llamar “${nombre}” · on` : `Llamar “${nombre}” · off`}
+              </Boton>
+              <Boton pequeno onClick={() => setGestosActivos((v) => !v)}>
+                {gestosActivos ? "Gestos · on" : "Gestos · off"}
+              </Boton>
+              <Boton pequeno onClick={() => setModoEspejo((v) => !v)}>
+                {modoEspejo ? "Modo espejo" : "Modo UI"}
+              </Boton>
+            </>
+          )}
+          <Boton pequeno onClick={() => setVista(final ? "pruebas" : "final")}>
+            {final ? "Vista final" : "Vista pruebas"}
           </Boton>
         </div>
       </header>
@@ -174,182 +156,238 @@ export function EspejoApp() {
           <PantallaExito conjunto={confirmado} onCerrar={cerrarConfirmacion} oscuro />
         </div>
       ) : (
-        <main className="flex-1 grid grid-cols-[260px_minmax(0,1fr)_260px] gap-6 px-10 py-6 min-h-0">
-          {/* ---------- Izquierda: voz ---------- */}
+        <main
+          className={`flex-1 grid gap-6 px-10 py-6 min-h-0 ${
+            final ? "grid-cols-[320px_minmax(0,1fr)_380px]" : "grid-cols-[260px_minmax(0,1fr)_260px]"
+          }`}
+        >
+          {/* ---------- Izquierda: asistente ---------- */}
           <aside className="flex flex-col gap-4 min-h-0">
-            <p className={ETIQUETA}>Asistente</p>
+            <p className={ETIQUETA}>{nombreActivo ? nombre : "Asistente"}</p>
             <button
               type="button"
               onClick={alMicrofono}
               disabled={!vozDisponible || escuchando}
               aria-label="Hablar con el asistente"
-              className={`w-16 h-16 rounded-full border flex items-center justify-center text-2xl transition-colors ${
-                escuchando ? "bg-red-500/80 border-red-300 animate-pulse" : `${VIDRIO} hover:bg-white/20`
+              className={`w-16 h-16 rounded-full border flex items-center justify-center text-2xl transition-all ${
+                atento
+                  ? "bg-white/25 border-white shadow-[0_0_30px_rgba(255,255,255,0.5)] animate-pulse"
+                  : `${VIDRIO} hover:bg-white/20`
               } disabled:opacity-60`}
             >
               🎙️
             </button>
             <p className="text-xs text-white/70">
-              {!vozDisponible ? "Tu navegador no soporta voz" : escuchando ? "Escuchando…" : "Toca y habla"}
+              {!vozDisponible
+                ? "Tu navegador no soporta voz"
+                : escuchando
+                  ? "Escuchando…"
+                  : estadoNombre === "atento"
+                    ? "Te escucho…"
+                    : estadoNombre === "esperando"
+                      ? `Di “${nombre}” para llamarme`
+                      : estadoNombre === "error"
+                        ? "Sin permiso de micrófono"
+                        : "Toca y habla"}
             </p>
             {transcripcion && <p className="text-sm text-white/90">“{transcripcion}”</p>}
             {respuestaAsistente && <p className={`${VIDRIO} text-sm italic p-3 text-white/90`}>{respuestaAsistente}</p>}
             {aviso && <p className="text-sm text-amber-200">{aviso}</p>}
-          </aside>
 
-          {/* ---------- Centro: opciones ---------- */}
-          <section className="flex flex-col items-center justify-center min-h-0 min-w-0 gap-6">
-            {buscando && !hayConjuntos && <p className={ETIQUETA}>Armando tu look…</p>}
-
-            {!hayConjuntos && !buscando && !sesionId && (
-              <div className="flex flex-col items-center gap-5 text-center">
-                <p className="text-3xl font-light tracking-wide max-w-md">¿Qué te pones hoy?</p>
-                <p className="text-sm text-white/70 max-w-sm">
-                  Pídelo con la voz, con un gesto ✊, o toca el botón.
+            {!final && (
+              <div className="mt-auto flex flex-col gap-2">
+                <p className={ETIQUETA}>Pruebas · nombre</p>
+                <input
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  maxLength={20}
+                  aria-label="Nombre del asistente"
+                  className="bg-transparent border border-white/40 px-3 py-1.5 text-sm tracking-wide outline-none focus:border-white"
+                />
+                <p className="text-[11px] text-white/50 leading-snug">
+                  {nombreDisponible
+                    ? oido
+                      ? `Oído: “${oido}”`
+                      : "Activa “Llamar” y di el nombre; verás aquí lo que entiende."
+                    : "Este navegador no permite escucha continua."}
                 </p>
-                <Boton primario onClick={() => verCombinaciones("exploratorio")}>
-                  Ver combinaciones
-                </Boton>
               </div>
             )}
+          </aside>
 
-            {hayConjuntos && (
-              <>
-                <p className={ETIQUETA}>
-                  Opción {Math.min(seleccion, conjuntos.length - 1) + 1} de {conjuntos.length}
-                </p>
+          {/* ---------- Centro ---------- */}
+          {final ? (
+            <section aria-hidden="true" />
+          ) : (
+            <section className="flex flex-col items-center justify-center min-h-0 min-w-0 gap-6">
+              {buscando && !hayConjuntos && <p className={ETIQUETA}>Armando tu look…</p>}
 
-                <div className="relative w-full overflow-hidden" style={{ height: 470 }}>
-                  {conjuntos.length > 1 && <Flecha lado="izq" onClick={() => alGesto("anterior")} />}
-                  {conjuntos.length > 1 && <Flecha lado="der" onClick={() => alGesto("siguiente")} />}
-                  <div
-                    className="flex items-stretch h-full transition-transform duration-500 ease-out"
-                    style={{
-                      gap: `${GAP_PX}px`,
-                      width: `${conjuntos.length * CARD_PX + (conjuntos.length - 1) * GAP_PX}px`,
-                      marginLeft: "50%",
-                      transform: `translateX(${-(seleccion * (CARD_PX + GAP_PX) + CARD_PX / 2)}px)`,
-                    }}
-                  >
-                    {conjuntos.map((c, idx) => (
-                      <article
-                        key={idx}
-                        onClick={() => setSeleccion(idx)}
-                        style={{ width: `${CARD_PX}px` }}
-                        className={`shrink-0 flex flex-col p-4 gap-3 cursor-pointer transition-all duration-500 ${VIDRIO} ${
-                          idx === seleccion ? "border-white/80 opacity-100" : "opacity-40 scale-95"
-                        }`}
-                      >
-                        <div className="flex gap-3 flex-1 min-h-0">
-                          {c.piezas.map((p) => (
-                            <figure key={p.id} className="flex-1 min-w-0 flex flex-col gap-1.5">
-                              <img src={p.foto_path} alt={p.tipo} className="w-full flex-1 min-h-0 object-cover" />
-                              <figcaption className="text-[10px] uppercase tracking-[0.18em] text-white/80 truncate">
-                                {p.tipo} · {p.color}
-                              </figcaption>
-                            </figure>
-                          ))}
-                        </div>
-                        <p className="text-sm font-light italic text-white/85 leading-snug line-clamp-3">{c.razon}</p>
-                      </article>
-                    ))}
-                  </div>
-                </div>
-
-                {conjuntos.length > 1 && (
-                  <div className="flex gap-2">
-                    {conjuntos.map((_, idx) => (
-                      <span
-                        key={idx}
-                        className={`h-px transition-all ${idx === seleccion ? "w-10 bg-white" : "w-5 bg-white/40"}`}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex gap-3">
-                  <Boton primario onClick={() => aceptar(seleccion)} disabled={buscando}>
-                    Confirmar
-                  </Boton>
-                  <Boton onClick={otrasOpciones} disabled={buscando}>
-                    Otras opciones
+              {!hayConjuntos && !buscando && !sesionId && (
+                <div className="flex flex-col items-center gap-5 text-center">
+                  <p className="text-3xl font-light tracking-wide max-w-md">¿Qué te pones hoy?</p>
+                  <p className="text-sm text-white/70 max-w-sm">Pídelo con la voz, con un gesto ✊, o toca el botón.</p>
+                  <Boton primario onClick={() => verCombinaciones("exploratorio")}>
+                    Ver combinaciones
                   </Boton>
                 </div>
-              </>
-            )}
-          </section>
+              )}
 
-          {/* ---------- Derecha: prendas de la opción + gestos ---------- */}
-          <aside className="flex flex-col gap-4 min-h-0 text-right">
-            {actual && (
-              <>
-                <p className={ETIQUETA}>En esta opción</p>
-                <ul className="flex flex-col gap-3">
-                  {actual.piezas.map((p) => (
-                    <li key={p.id} className={`${VIDRIO} p-2 flex items-center gap-3 text-left`}>
-                      <img src={p.foto_path} alt={p.tipo} className="w-14 h-16 object-cover" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs uppercase tracking-[0.15em] truncate">{p.tipo}</p>
-                        <p className="text-[11px] text-white/60 truncate">
-                          {p.color} · {p.formalidad}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => cambiarPrenda(Math.min(seleccion, conjuntos.length - 1), p.id)}
-                          disabled={buscando}
-                          className="mt-1 text-[10px] uppercase tracking-[0.18em] underline underline-offset-4 text-white/80 hover:text-white disabled:opacity-40"
-                        >
-                          Cambiar
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-
-            <div className="mt-auto flex flex-col items-end gap-2">
-              {gestosActivos ? (
+              {hayConjuntos && (
                 <>
-                  <video
-                    ref={videoRef}
-                    muted
-                    playsInline
-                    className="w-44 border border-white/30"
-                    style={{ transform: "scaleX(-1)" }}
-                  />
-                  <p className="text-[11px] text-white/80">
-                    {estadoGestos === "cargando" && "Cargando gestos…"}
-                    {estadoGestos === "error" && errorGestos}
-                    {estadoGestos === "listo" &&
-                      (ultimo ? `✔ ${ultimo}` : detectado ? `Veo: ${detectado}` : "Muestra tu mano a la cámara")}
+                  <p className={ETIQUETA}>
+                    Opción {Math.min(seleccion, conjuntos.length - 1) + 1} de {conjuntos.length}
                   </p>
-                  {progreso > 0 && (
-                    <div className="w-44 h-px bg-white/25">
-                      <div className="h-px bg-white" style={{ width: `${progreso * 100}%` }} />
+
+                  <div className="relative w-full overflow-hidden" style={{ height: 470 }}>
+                    {conjuntos.length > 1 && <Flecha lado="izq" onClick={() => alGesto("anterior")} />}
+                    {conjuntos.length > 1 && <Flecha lado="der" onClick={() => alGesto("siguiente")} />}
+                    <div
+                      className="flex items-stretch h-full transition-transform duration-500 ease-out"
+                      style={{
+                        gap: `${GAP_PX}px`,
+                        width: `${conjuntos.length * CARD_PX + (conjuntos.length - 1) * GAP_PX}px`,
+                        marginLeft: "50%",
+                        transform: `translateX(${-(seleccion * (CARD_PX + GAP_PX) + CARD_PX / 2)}px)`,
+                      }}
+                    >
+                      {conjuntos.map((c, idx) => (
+                        <article
+                          key={idx}
+                          onClick={() => setSeleccion(idx)}
+                          style={{ width: `${CARD_PX}px` }}
+                          className={`shrink-0 flex flex-col p-4 gap-3 cursor-pointer transition-all duration-500 ${VIDRIO} ${
+                            idx === seleccion ? "border-white/80 opacity-100" : "opacity-40 scale-95"
+                          }`}
+                        >
+                          <div className="flex gap-3 flex-1 min-h-0">
+                            {c.piezas.map((p) => (
+                              <figure key={p.id} className="flex-1 min-w-0 flex flex-col gap-1.5">
+                                <img src={p.foto_path} alt={p.tipo} className="w-full flex-1 min-h-0 object-cover" />
+                                <figcaption className="text-[10px] uppercase tracking-[0.18em] text-white/80 truncate">
+                                  {p.tipo} · {p.color}
+                                </figcaption>
+                              </figure>
+                            ))}
+                          </div>
+                          <p className="text-sm font-light italic text-white/85 leading-snug line-clamp-3">{c.razon}</p>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+
+                  {conjuntos.length > 1 && (
+                    <div className="flex gap-2">
+                      {conjuntos.map((_, idx) => (
+                        <span
+                          key={idx}
+                          className={`h-px transition-all ${idx === seleccion ? "w-10 bg-white" : "w-5 bg-white/40"}`}
+                        />
+                      ))}
                     </div>
                   )}
+
+                  <div className="flex gap-3">
+                    <Boton primario onClick={() => aceptar(seleccion)} disabled={buscando}>
+                      Confirmar
+                    </Boton>
+                    <Boton onClick={otrasOpciones} disabled={buscando}>
+                      Otras opciones
+                    </Boton>
+                  </div>
                 </>
-              ) : (
-                <p className="text-[11px] text-white/50 leading-relaxed">
-                  Activa “Gestos” para controlarlo con la mano.
-                </p>
               )}
-              <p className={`${ETIQUETA} mt-1`}>Gestos</p>
-              <ul className="text-[11px] text-white/60 leading-relaxed">
-                <li>👍 sostener · confirmar</li>
-                <li>👎 sostener · otras opciones</li>
-                <li>👋 mover a los lados · pasar</li>
-                <li>✊ sostener · hablar</li>
-              </ul>
-              {modoEspejo && (
-                <p className="text-[10px] text-white/50 max-w-48 leading-tight">
-                  Cámara solo como fondo visual. No se graba ni se envía a ningún servidor.
-                </p>
+            </section>
+          )}
+
+          {/* ---------- Derecha ---------- */}
+          {final ? (
+            <aside className="flex flex-col justify-center min-h-0">
+              <PanelOpcion
+                conjuntos={conjuntos}
+                seleccion={seleccion}
+                buscando={buscando}
+                yaPidio={Boolean(sesionId)}
+                pista={nombreActivo ? `Di “${nombre}, ¿qué me pongo?”, haz un gesto o toca el botón.` : "Toca el botón o usa un gesto."}
+                onMover={(d) => alGesto(d === 1 ? "siguiente" : "anterior")}
+                onConfirmar={() => aceptar(Math.min(seleccion, conjuntos.length - 1))}
+                onOtras={otrasOpciones}
+                onCambiar={(id) => cambiarPrenda(Math.min(seleccion, conjuntos.length - 1), id)}
+                onVer={() => verCombinaciones("exploratorio")}
+              />
+            </aside>
+          ) : (
+            <aside className="flex flex-col gap-4 min-h-0 text-right">
+              {actual && (
+                <>
+                  <p className={ETIQUETA}>En esta opción</p>
+                  <ul className="flex flex-col gap-3">
+                    {actual.piezas.map((p) => (
+                      <li key={p.id} className={`${VIDRIO} p-2 flex items-center gap-3 text-left`}>
+                        <img src={p.foto_path} alt={p.tipo} className="w-14 h-16 object-cover" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs uppercase tracking-[0.15em] truncate">{p.tipo}</p>
+                          <p className="text-[11px] text-white/60 truncate">
+                            {p.color} · {p.formalidad}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => cambiarPrenda(Math.min(seleccion, conjuntos.length - 1), p.id)}
+                            disabled={buscando}
+                            className="mt-1 text-[10px] uppercase tracking-[0.18em] underline underline-offset-4 text-white/80 hover:text-white disabled:opacity-40"
+                          >
+                            Cambiar
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
-            </div>
-          </aside>
+
+              <div className={`mt-auto flex flex-col items-end gap-2 ${gestosActivos ? "pb-52" : ""}`}>
+                {!gestosActivos && (
+                  <p className="text-[11px] text-white/50 leading-relaxed">Activa “Gestos” para controlarlo con la mano.</p>
+                )}
+                <p className={`${ETIQUETA} mt-1`}>Gestos</p>
+                <ul className="text-[11px] text-white/60 leading-relaxed">
+                  <li>👍 sostener · confirmar</li>
+                  <li>👎 sostener · otras opciones</li>
+                  <li>👋 mover a los lados · pasar</li>
+                  <li>✊ sostener · hablar</li>
+                </ul>
+                {modoEspejo && (
+                  <p className="text-[10px] text-white/50 max-w-48 leading-tight">
+                    Cámara solo como fondo visual. No se graba ni se envía a ningún servidor.
+                  </p>
+                )}
+              </div>
+            </aside>
+          )}
         </main>
+      )}
+
+      {/* ---------- Vista previa de gestos (un solo <video>, fijo en la esquina) ---------- */}
+      {gestosActivos && !confirmado && (
+        <div className="fixed bottom-6 right-10 flex flex-col items-end gap-1.5">
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            className={`border border-white/30 ${final ? "w-28 opacity-70" : "w-44"}`}
+            style={{ transform: "scaleX(-1)" }}
+          />
+          <p className="text-[11px] text-white/80">
+            {estadoGestos === "cargando" && "Cargando gestos…"}
+            {estadoGestos === "error" && errorGestos}
+            {estadoGestos === "listo" &&
+              (ultimo ? `✔ ${ultimo}` : detectado ? `Veo: ${detectado}` : final ? "" : "Muestra tu mano a la cámara")}
+          </p>
+          {progreso > 0 && (
+            <div className={`${final ? "w-28" : "w-44"} h-px bg-white/25`}>
+              <div className="h-px bg-white" style={{ width: `${progreso * 100}%` }} />
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
