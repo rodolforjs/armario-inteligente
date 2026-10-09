@@ -102,7 +102,7 @@ export function EspejoApp() {
           size="sm"
           variant="outline"
           onClick={() => setModoEspejo((v) => !v)}
-          className="bg-white/10 backdrop-blur"
+          className="bg-white/10 backdrop-blur text-white border-white/40"
         >
           {modoEspejo ? "🪞 Modo espejo" : "🖥️ Modo UI"}
         </Button>
@@ -111,7 +111,7 @@ export function EspejoApp() {
           size="sm"
           variant="outline"
           onClick={() => setGestosActivos((v) => !v)}
-          className="bg-white/10 backdrop-blur"
+          className="bg-white/10 backdrop-blur text-white border-white/40"
         >
           {gestosActivos ? "🖐️ Gestos: activados" : "🖐️ Activar gestos"}
         </Button>
@@ -176,7 +176,7 @@ export function EspejoApp() {
               type="button"
               variant="outline"
               onClick={() => verCombinaciones("exploratorio")}
-              className="bg-white/10 backdrop-blur"
+              className="bg-white/10 backdrop-blur text-white border-white/40"
             >
               ✨ Ver combinaciones
             </Button>
@@ -263,7 +263,7 @@ export function EspejoApp() {
           )}
 
           {conjuntos.length > 0 && (
-            <Button type="button" variant="secondary" onClick={otrasOpciones} disabled={buscando} className="bg-white/10 backdrop-blur">
+            <Button type="button" variant="secondary" onClick={otrasOpciones} disabled={buscando} className="bg-white/10 backdrop-blur text-white border-white/40">
               Pedir otras opciones
             </Button>
           )}
