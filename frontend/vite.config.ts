@@ -20,6 +20,8 @@ export default defineConfig({
       '/leds': 'http://127.0.0.1:8000',
       '/estado': 'http://127.0.0.1:8000',
       '/uploads': 'http://127.0.0.1:8000',
+      '/mercado': 'http://127.0.0.1:8000',
+      '/asistente': 'http://127.0.0.1:8000',
     },
   },
   build: {
