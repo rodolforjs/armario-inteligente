@@ -25,6 +25,11 @@ class AceptarConjunto(BaseModel):
     prenda_ids: list[int]
 
 
+class ValoracionLook(BaseModel):
+    prenda_ids: list[int]
+    valor: int  # 1 me encantó, 0 está bien, -1 no me convenció
+
+
 class RechazarPrenda(BaseModel):
     conjunto_idx: int
     prenda_id: int
@@ -37,9 +42,26 @@ def _cargar_sesion(conn, sesion_id: str):
     return dict(fila)
 
 
+def _afinidades(conn) -> dict[int, int]:
+    """Suma de valoraciones (+1 me encantó, -1 no me convenció) por prenda."""
+    totales: dict[int, int] = {}
+    for fila in conn.execute("SELECT payload_json FROM evento_log WHERE tipo = 'look_valorado'").fetchall():
+        try:
+            datos = json.loads(fila["payload_json"] or "{}")
+        except ValueError:
+            continue
+        for pid in datos.get("prenda_ids", []):
+            totales[pid] = totales.get(pid, 0) + int(datos.get("valor", 0))
+    return totales
+
+
 def _prendas_disponibles(conn) -> list[dict]:
     filas = conn.execute("SELECT * FROM prenda WHERE estado = 'disponible'").fetchall()
-    return [dict(f) for f in filas]
+    afinidad = _afinidades(conn)
+    prendas = [dict(f) for f in filas]
+    for p in prendas:
+        p["afinidad"] = afinidad.get(p["id"], 0)
+    return prendas
 
 
 @router.post("")
@@ -94,6 +116,19 @@ def solicitar_recomendacion(solicitud: SolicitudRecomendacion):
         )
 
     return {"sesion_id": sesion_id, "clima": resultado["clima"], "conjuntos": resultado["conjuntos"]}
+
+
+@router.post("/valorar")
+def valorar_look(valoracion: ValoracionLook):
+    if valoracion.valor not in (-1, 0, 1):
+        raise HTTPException(400, "valor debe ser -1, 0 o 1")
+    with db_session() as conn:
+        registrar_evento(
+            conn,
+            "look_valorado",
+            payload={"prenda_ids": valoracion.prenda_ids, "valor": valoracion.valor},
+        )
+    return {"ok": True}
 
 
 @router.get("/{sesion_id}")

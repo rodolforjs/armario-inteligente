@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 from app.db import init_db
-from app.routers import asistente, estado, prendas, recomendaciones, vision_closet
+from app.routers import asistente, estado, prendas, recomendaciones, vision_closet, mercado
 
 app = FastAPI(title="Armario Inteligente")
 
@@ -21,6 +21,7 @@ app.include_router(prendas.router)
 app.include_router(recomendaciones.router)
 app.include_router(estado.router)
 app.include_router(vision_closet.router)
+app.include_router(mercado.router)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")

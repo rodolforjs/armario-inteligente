@@ -44,6 +44,7 @@ export function Armario() {
     material: "",
     temporada: "",
   });
+  const [similares, setSimilares] = useState<Prenda[]>([]);
   const cameraRef = useRef<CameraCaptureHandle>(null);
   const [prendaSeleccionada, setPrendaSeleccionada] = useState<Prenda | null>(
     null,
@@ -107,6 +108,25 @@ export function Armario() {
       setCargando(false);
     }
   }
+
+  // Aviso de duplicados: busca prendas que ya tienes con el mismo tipo y color mientras confirmas los atributos.
+  useEffect(() => {
+    if (!token || !atributos.tipo.trim() || !atributos.color.trim()) {
+      setSimilares([]);
+      return;
+    }
+    let vigente = true;
+    const t = setTimeout(() => {
+      api
+        .prendasSimilares(atributos.tipo, atributos.color)
+        .then((r) => vigente && setSimilares(r))
+        .catch(() => vigente && setSimilares([]));
+    }, 400);
+    return () => {
+      vigente = false;
+      clearTimeout(t);
+    };
+  }, [token, atributos.tipo, atributos.color]);
 
   async function guardarPrenda(e?: React.FormEvent) {
     e?.preventDefault();
@@ -406,13 +426,40 @@ export function Armario() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {similares.length > 0 && (
+                    <div
+                      role="alert"
+                      className="rounded-lg border border-amber-400/60 bg-amber-50 p-3 text-sm text-amber-900"
+                    >
+                      <p className="font-medium">
+                        ⚠️ Ya tienes{" "}
+                        {similares.length === 1
+                          ? "una prenda parecida"
+                          : `${similares.length} prendas parecidas`}
+                      </p>
+                      <p className="mt-0.5 text-xs">
+                        Mismo tipo y color. Revisa que no sea la misma antes de
+                        guardarla otra vez.
+                      </p>
+                      <div className="mt-2 flex gap-2 overflow-x-auto">
+                        {similares.map((s) => (
+                          <img
+                            key={s.id}
+                            src={s.foto_path}
+                            alt={`${s.tipo} ${s.color}`}
+                            className="h-16 w-16 shrink-0 rounded object-cover"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <Button
                       type="submit"
                       disabled={cargando}
                       className="flex-1"
                     >
-                      Guardar
+                      {similares.length > 0 ? "Guardar igual" : "Guardar"}
                     </Button>
                     <Button
                       type="button"

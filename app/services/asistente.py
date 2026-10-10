@@ -18,6 +18,8 @@ ACCIONES = [
     "cambiar_prenda",
     "otras_opciones",
     "responder",
+    "ver_tienda",
+    "siguiente_paso",
     "preguntar",
     "desconocido",
 ]
@@ -88,6 +90,11 @@ Acciones posibles, según la etapa actual de la app (etapa en el contexto):
   ("¿tengo algo azul?", "¿cuántas poleras hay?"), por qué elegiste el look en pantalla ("piezas_conjunto" y
   "razon_conjunto" del contexto), qué ponerse según el clima, consejos de estilo, charla breve. Responde en
   1-3 frases con datos reales. Sirve en cualquier etapa.
+- ver_tienda: la persona quiere ideas de ropa nueva para comprar ("¿qué me falta?", "qué me recomiendas comprar",
+  "muéstrame cosas de Zara o H&M"). Cualquier etapa. Responde que le muestras sugerencias; no nombres prendas.
+- siguiente_paso: etapa "vistiendose" (la app la está guiando para ponerse el look). Úsalo cuando diga que ya
+  se puso la prenda o que sigan ("listo", "ya está", "siguiente", "ya me lo puse"). "paso_actual" en el contexto
+  dice qué prenda toca; confirma muy breve. Si en cambio hace una pregunta, usa "responder".
 - desconocido: solo si el audio es ininteligible. Si algo no tiene que ver con la ropa, usa "responder" con
   una frase amable que lo reconduzca.
 
@@ -236,3 +243,31 @@ def interpretar_comando(transcripcion: str, contexto: dict) -> dict:
         return resultado
     except Exception:
         return _interpretar_con_reglas(transcripcion, contexto)
+
+
+def opinar_look(imagen_bytes: bytes, mime_type: str, piezas: list, tono: str, nombre: str) -> str:
+    import base64
+
+    descripcion = ", ".join(str(p) for p in piezas) or "no indicado"
+    prompt = (
+        f"Eres {nombre or 'el asistente'}, asistente de un armario inteligente. {TONOS.get(tono, TONOS['cercano'])}\n"
+        "La persona se puso el look que le propusiste y te muestra cómo le quedó en el espejo. "
+        f"El look propuesto era: {descripcion}.\n"
+        "Da tu opinión en 2 o 3 frases, en español: qué funciona y, si corresponde, un ajuste concreto y simple "
+        "(arremangar, abrochar, meter la camisa, etc.). Habla del conjunto y la ropa, nunca del cuerpo ni del "
+        "rostro de la persona. Si no se ve bien la ropa, dilo y pide acercarse o mejorar la luz."
+    )
+    b64 = base64.b64encode(imagen_bytes).decode("utf-8")
+    response = get_client().chat.completions.create(
+        model=MODEL,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}"}},
+                ],
+            }
+        ],
+    )
+    return (response.choices[0].message.content or "").strip()

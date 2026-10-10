@@ -5,10 +5,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
 
 from app.db import db_session
 from app.services import storage, vision
 from app.services.eventos import registrar_evento
+from app.services.recomendacion import _normalizar
 
 router = APIRouter(prefix="/prendas", tags=["prendas"])
 
@@ -50,6 +52,27 @@ async def subir_foto(archivo: UploadFile = File(...)):
         "ia_disponible": ia_disponible,
         "foto_url": foto_url,
     }
+
+
+class AtributosSimilares(BaseModel):
+    tipo: str
+    color: str
+
+
+@router.post("/similares")
+def prendas_similares(atributos: AtributosSimilares):
+    """Prendas que ya tienes con el mismo tipo y color, para avisar de posibles duplicados antes de guardar."""
+    tipo, color = _normalizar(atributos.tipo), _normalizar(atributos.color)
+    if not tipo or not color:
+        return []
+    with db_session() as conn:
+        filas = [dict(f) for f in conn.execute("SELECT * FROM prenda").fetchall()]
+    return [
+        p
+        for p in filas
+        if _normalizar(p["tipo"]) == tipo
+        and (color in _normalizar(p["color"]) or _normalizar(p["color"]) in color)
+    ]
 
 
 @router.post("")

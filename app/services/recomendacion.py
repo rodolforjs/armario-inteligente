@@ -107,6 +107,8 @@ def describir_preferencias(preferencias: dict | None) -> str:
 
 def _score_prenda(prenda: dict, clima_categoria: str, ocasion: str | None, preferencias: dict | None = None) -> float:
     score = _score_preferencias(prenda, preferencias)
+    # Aprendizaje: lo que la persona valoró bien o mal tras ponérselo pesa en próximas recomendaciones.
+    score += 0.6 * max(-3, min(3, prenda.get("afinidad", 0)))
     if prenda["abrigo"] in ABRIGO_POR_CLIMA.get(clima_categoria, []):
         score += 2.0
     if ocasion and _normalizar(prenda["formalidad"]) == _normalizar(ocasion):

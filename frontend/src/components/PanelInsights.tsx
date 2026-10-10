@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type Clima, type EventoLog, type Prenda } from "@/lib/api";
 import { ETIQUETA, VIDRIO } from "@/components/espejoUi";
 
-const COLORES: Record<string, string> = {
+export const COLORES: Record<string, string> = {
   blanco: "#f5f5f5",
   negro: "#111",
   gris: "#888",

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { FondoEspejo } from "@/components/FondoEspejo";
 import { PiezasLook } from "@/components/PiezasLook";
-import { PanelConfirmado } from "@/components/PanelConfirmado";
+import { GuiaVestir } from "@/components/GuiaVestir";
+import { PanelTienda } from "@/components/PanelTienda";
+import { ordenarParaVestir } from "@/lib/vestir";
 import { useAsistenteVoz } from "@/hooks/useAsistenteVoz";
 import { useCombinaciones } from "@/hooks/useCombinaciones";
 import { useGestos, type Gesto } from "@/hooks/useGestos";
@@ -46,7 +48,8 @@ export function EspejoApp() {
   );
   const despuesDeHablar = useRef<(resp: RespuestaVoz) => void>(() => {});
   const final = vista === "final";
-  const [verInsights, setVerInsights] = useState(false);
+  const [panel, setPanel] = useState<null | "insights" | "tienda">(null);
+  const [paso, setPaso] = useState(0);
   const [seleccion, setSeleccion] = useState(0);
 
   const {
@@ -65,7 +68,13 @@ export function EspejoApp() {
   } = useCombinaciones();
 
   function etapaActual(): string {
+    if (confirmado) return "vistiendose";
     return conjuntos.length > 0 ? "mostrando_combinaciones" : "inicio";
+  }
+
+  function avanzarPaso() {
+    if (!confirmado) return;
+    setPaso((p) => Math.min(p + 1, confirmado.piezas.length));
   }
 
   const {
@@ -88,6 +97,14 @@ export function EspejoApp() {
         razon_conjunto: visto?.razon ?? null,
         ocasion_actual: pedidoActual.current.ocasion,
         preferencias_actuales: pedidoActual.current.preferencias,
+        paso_actual: confirmado
+          ? (() => {
+              const pieza = ordenarParaVestir(confirmado.piezas)[paso];
+              return pieza
+                ? `${pieza.tipo} ${pieza.color}`
+                : "ya terminó de vestirse";
+            })()
+          : null,
       };
     },
     onAccion: (resp, texto) => {
@@ -120,6 +137,12 @@ export function EspejoApp() {
         case "otras_opciones":
           otrasOpciones();
           break;
+        case "ver_tienda":
+          setPanel("tienda");
+          break;
+        case "siguiente_paso":
+          avanzarPaso();
+          break;
       }
     },
   });
@@ -128,12 +151,22 @@ export function EspejoApp() {
     setSeleccion(0);
   }, [conjuntos]);
 
+  useEffect(() => {
+    setPaso(0);
+  }, [confirmado]);
+
   function alGesto(g: Gesto) {
     if (g === "silencio") {
       silenciar();
       return;
     }
-    if (confirmado || buscando) return;
+    if (confirmado) {
+      // Guía para vestirse: el pulgar arriba avanza al siguiente paso.
+      if (g === "confirmar") avanzarPaso();
+      else if (g === "voz" && vozDisponible && !escuchando) alMicrofono();
+      return;
+    }
+    if (buscando) return;
     switch (g) {
       case "confirmar":
         if (conjuntos.length > 0)
@@ -236,11 +269,36 @@ export function EspejoApp() {
           )}
           <button
             type="button"
-            onClick={() => setVerInsights((v) => !v)}
+            onClick={() => setPanel((v) => (v === "tienda" ? null : "tienda"))}
+            aria-label="Ideas de tienda"
+            title="Ideas de tienda"
+            className={`w-8 h-8 flex items-center justify-center border transition-colors ${
+              panel === "tienda"
+                ? "bg-white text-black border-white"
+                : "border-white/50 text-white hover:bg-white hover:text-black"
+            }`}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
+              <path d="M5 8h14l-1 12H6L5 8Z" />
+              <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setPanel((v) => (v === "insights" ? null : "insights"))
+            }
             aria-label="Insights del closet"
             title="Insights del closet"
             className={`w-8 h-8 flex items-center justify-center border transition-colors ${
-              verInsights
+              panel === "insights"
                 ? "bg-white text-black border-white"
                 : "border-white/50 text-white hover:bg-white hover:text-black"
             }`}
@@ -425,9 +483,13 @@ export function EspejoApp() {
         {/* ---------- Derecha ---------- */}
         {confirmado ? (
           <aside className="flex flex-col justify-center min-h-0">
-            <PanelConfirmado
+            <GuiaVestir
               conjunto={confirmado}
+              paso={paso}
+              onPaso={setPaso}
               onCerrar={cerrarConfirmacion}
+              tono={tono}
+              nombre={nombre}
             />
           </aside>
         ) : final ? (
@@ -523,13 +585,16 @@ export function EspejoApp() {
         )}
       </main>
 
-      {verInsights && (
-        <PanelInsights clima={clima} onCerrar={() => setVerInsights(false)} />
+      {panel === "insights" && (
+        <PanelInsights clima={clima} onCerrar={() => setPanel(null)} />
       )}
+      {panel === "tienda" && <PanelTienda onCerrar={() => setPanel(null)} />}
 
       {/* ---------- Vista previa de gestos (un solo <video>, fijo en la esquina) ---------- */}
-      {gestosActivos && !confirmado && (
-        <div className={`fixed bottom-6 flex flex-col gap-1.5 ${final ? "left-10 items-start" : "right-10 items-end"}`}>
+      {gestosActivos && (
+        <div
+          className={`fixed bottom-6 flex flex-col gap-1.5 ${final ? "left-10 items-start" : "right-10 items-end"}`}
+        >
           <video
             ref={videoRef}
             muted

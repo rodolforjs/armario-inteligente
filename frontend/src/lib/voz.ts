@@ -1,6 +1,10 @@
 const SpeechRecognitionCtor: typeof window.SpeechRecognition | undefined =
   window.SpeechRecognition ||
-  (window as unknown as { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition;
+  (
+    window as unknown as {
+      webkitSpeechRecognition?: typeof window.SpeechRecognition;
+    }
+  ).webkitSpeechRecognition;
 
 export const vozDisponible = Boolean(SpeechRecognitionCtor);
 
@@ -11,7 +15,10 @@ const CLAVE_AJUSTES = "espejo.vozAjustes";
 
 export function leerAjustesVoz(): AjustesVoz {
   try {
-    return { ...AJUSTES_VOZ_BASE, ...JSON.parse(localStorage.getItem(CLAVE_AJUSTES) || "{}") };
+    return {
+      ...AJUSTES_VOZ_BASE,
+      ...JSON.parse(localStorage.getItem(CLAVE_AJUSTES) || "{}"),
+    };
   } catch {
     return AJUSTES_VOZ_BASE;
   }
@@ -29,14 +36,20 @@ export function guardarAjustesVoz(ajustes: AjustesVoz) {
 export function vocesEnEspanol(): SpeechSynthesisVoice[] {
   if (!("speechSynthesis" in window)) return [];
   const puntaje = (v: SpeechSynthesisVoice) =>
-    (/natural|neural/i.test(v.name) ? 2 : 0) + (/google/i.test(v.name) ? 1 : 0) + (v.lang.toLowerCase() === "es-cl" ? 1 : 0);
+    (/natural|neural/i.test(v.name) ? 2 : 0) +
+    (/google/i.test(v.name) ? 1 : 0) +
+    (v.lang.toLowerCase() === "es-cl" ? 1 : 0);
   return window.speechSynthesis
     .getVoices()
     .filter((v) => v.lang.toLowerCase().startsWith("es"))
     .sort((a, b) => puntaje(b) - puntaje(a));
 }
 
-export function hablar(texto: string, onFin?: () => void, ajustes: AjustesVoz = leerAjustesVoz()) {
+export function hablar(
+  texto: string,
+  onFin?: () => void,
+  ajustes: AjustesVoz = leerAjustesVoz(),
+) {
   if (!("speechSynthesis" in window)) {
     onFin?.();
     return;
@@ -44,7 +57,9 @@ export function hablar(texto: string, onFin?: () => void, ajustes: AjustesVoz = 
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(texto);
   utterance.lang = "es-CL";
-  const elegida = vocesEnEspanol().find((v) => v.voiceURI === ajustes.voz) ?? vocesEnEspanol()[0];
+  const elegida =
+    vocesEnEspanol().find((v) => v.voiceURI === ajustes.voz) ??
+    vocesEnEspanol()[0];
   if (elegida) {
     utterance.voice = elegida;
     utterance.lang = elegida.lang;
@@ -62,7 +77,10 @@ export function callar() {
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
 }
 
-export function escuchar(onResultado: (texto: string) => void, onFin: () => void) {
+export function escuchar(
+  onResultado: (texto: string) => void,
+  onFin: () => void,
+) {
   if (!SpeechRecognitionCtor) return;
   window.speechSynthesis.cancel();
   const recognizer = new SpeechRecognitionCtor();
