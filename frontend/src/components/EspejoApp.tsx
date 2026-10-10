@@ -151,9 +151,16 @@ export function EspejoApp() {
     detectado,
     progreso,
     ultimo,
+    navegando,
+    posicion,
   } = useGestos({
     activo: gestosActivos,
     onGesto: alGesto,
+    navegacion: () => ({
+      total: conjuntos.length,
+      actual: Math.min(seleccion, conjuntos.length - 1),
+    }),
+    onNavegar: setSeleccion,
   });
 
   const {
@@ -505,7 +512,7 @@ export function EspejoApp() {
               <ul className="text-[11px] text-white/60 leading-relaxed">
                 <li>👍 sostener · confirmar</li>
                 <li>👎 sostener · otras opciones</li>
-                <li>👋 mover a los lados · pasar</li>
+                <li>🖐️ palma abierta + mover · desplazar</li>
                 <li>✊ sostener · hablar</li>
                 <li>☝️ sostener · silencio</li>
               </ul>
@@ -531,23 +538,49 @@ export function EspejoApp() {
             ref={videoRef}
             muted
             playsInline
-            className={`border border-white/30 ${final ? "w-28 opacity-70" : "w-44"}`}
+            className={`border ${navegando ? "border-white" : "border-white/30"} w-48 ${final ? "opacity-80" : ""}`}
             style={{ transform: "scaleX(-1)" }}
           />
           <p className="text-[11px] text-white/80">
             {estadoGestos === "cargando" && "Cargando gestos…"}
             {estadoGestos === "error" && errorGestos}
             {estadoGestos === "listo" &&
-              (ultimo
-                ? `✔ ${ultimo}`
-                : detectado
-                  ? `Veo: ${detectado}`
-                  : final
-                    ? ""
-                    : "Muestra tu mano a la cámara")}
+              (navegando
+                ? "Desplazando · mueve la mano a los lados"
+                : progreso > 0
+                  ? "Palma abierta… mantén"
+                  : ultimo
+                    ? `✔ ${ultimo}`
+                    : detectado
+                      ? `Veo: ${detectado}`
+                      : final
+                        ? ""
+                        : "Muestra tu mano a la cámara")}
           </p>
+          {navegando && conjuntos.length > 1 && (
+            <div className="relative w-48 h-4">
+              <div className="absolute inset-x-0 top-1/2 h-px bg-white/30" />
+              {conjuntos.map((_, i) => (
+                <span
+                  key={i}
+                  className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full border border-white ${
+                    i === Math.min(seleccion, conjuntos.length - 1)
+                      ? "bg-white"
+                      : "bg-transparent"
+                  }`}
+                  style={{ left: `${(i / (conjuntos.length - 1)) * 100}%` }}
+                />
+              ))}
+              <span
+                className="absolute top-0 w-px h-4 bg-white/70"
+                style={{
+                  left: `${Math.max(0, Math.min(1, (posicion - 0.2) / 0.6)) * 100}%`,
+                }}
+              />
+            </div>
+          )}
           {progreso > 0 && (
-            <div className={`${final ? "w-28" : "w-44"} h-px bg-white/25`}>
+            <div className="w-48 h-px bg-white/25">
               <div
                 className="h-px bg-white"
                 style={{ width: `${progreso * 100}%` }}
