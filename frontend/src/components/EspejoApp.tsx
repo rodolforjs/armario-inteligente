@@ -211,7 +211,7 @@ export function EspejoApp() {
           <h1 className="text-sm uppercase tracking-[0.35em] font-medium">
             Armario Inteligente
           </h1>
-          {clima && (
+          {clima && clima.temperatura_c != null && (
             <p className={`${ETIQUETA} mt-1`}>
               Santiago · {clima.temperatura_c}°C · {clima.categoria}
               {clima.precipitacion_mm > 0 ? " · lluvia" : ""}
