@@ -32,7 +32,7 @@ export function PanelTienda({ onCerrar }: { onCerrar: () => void }) {
       </div>
       <p className="text-[11px] text-white/50 leading-snug">
         Simulación: catálogo de ejemplo de H&M y Zara elegido según lo que te
-        falta. Los enlaces abren la búsqueda en la tienda.
+        falta. Las imágenes son ilustrativas (generadas con IA) y los enlaces abren la búsqueda en la tienda.
       </p>
 
       {!productos && !error && (
@@ -54,6 +54,12 @@ export function PanelTienda({ onCerrar }: { onCerrar: () => void }) {
           key={p.id}
           className="border border-white/20 p-3 flex flex-col gap-2"
         >
+          <img
+            src={p.imagen}
+            alt={p.nombre}
+            loading="lazy"
+            className="w-full h-44 object-cover"
+          />
           <div className="flex items-center justify-between">
             <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">
               {p.marca}
