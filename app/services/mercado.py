@@ -11,7 +11,7 @@ CATALOGO = json.loads((Path(__file__).resolve().parent.parent / "data" / "catalo
 MAX_SUGERENCIAS = 5
 
 # Catálogo curado de ejemplo (simulación): no hay API pública de H&M ni Zara, así que el enlace lleva a la
-# búsqueda de la tienda, sin precios ni fotos inventados.
+# búsqueda de la tienda, sin precios inventados. Las imágenes son ilustrativas (generadas con IA), no fotos de la tienda.
 URLS = {
     "H&M": "https://www2.hm.com/es_cl/search-results.html?q={q}",
     "Zara": "https://www.zara.com/cl/es/search?searchTerm={q}",
@@ -19,7 +19,12 @@ URLS = {
 
 
 def _con_url(item: dict, motivo: str) -> dict:
-    return {**item, "motivo": motivo, "url": URLS[item["marca"]].format(q=quote_plus(item["busqueda"]))}
+    return {
+        **item,
+        "motivo": motivo,
+        "url": URLS[item["marca"]].format(q=quote_plus(item["busqueda"])),
+        "imagen": f"/catalogo/{item['id']}.jpg",
+    }
 
 
 def _ya_lo_tiene(item: dict, prendas: list[dict]) -> bool:

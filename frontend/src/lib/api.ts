@@ -67,6 +67,7 @@ export type ProductoMercado = {
   formalidad: string;
   motivo: string;
   url: string;
+  imagen: string;
 };
 
 export type Modo = "exploratorio" | "pocas_opciones" | "preciso";
