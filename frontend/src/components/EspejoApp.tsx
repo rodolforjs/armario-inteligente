@@ -529,7 +529,7 @@ export function EspejoApp() {
 
       {/* ---------- Vista previa de gestos (un solo <video>, fijo en la esquina) ---------- */}
       {gestosActivos && !confirmado && (
-        <div className="fixed bottom-6 right-10 flex flex-col items-end gap-1.5">
+        <div className={`fixed bottom-6 flex flex-col gap-1.5 ${final ? "left-10 items-start" : "right-10 items-end"}`}>
           <video
             ref={videoRef}
             muted
