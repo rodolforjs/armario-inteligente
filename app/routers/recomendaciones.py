@@ -42,16 +42,23 @@ def _cargar_sesion(conn, sesion_id: str):
     return dict(fila)
 
 
-def _afinidades(conn) -> dict[int, int]:
-    """Suma de valoraciones (+1 me encantó, -1 no me convenció) por prenda."""
-    totales: dict[int, int] = {}
-    for fila in conn.execute("SELECT payload_json FROM evento_log WHERE tipo = 'look_valorado'").fetchall():
+PESO_RECHAZO_LOOK = -0.35  # rechazar un look pesa menos que valorarlo mal una vez puesto
+
+
+def _afinidades(conn) -> dict[int, float]:
+    """Aprendizaje: valoraciones (+1 me encantó, -1 no me convenció) y looks rechazados, por prenda."""
+    totales: dict[int, float] = {}
+    filas = conn.execute(
+        "SELECT tipo, payload_json FROM evento_log WHERE tipo IN ('look_valorado', 'conjunto_rechazado')"
+    ).fetchall()
+    for fila in filas:
         try:
             datos = json.loads(fila["payload_json"] or "{}")
         except ValueError:
             continue
+        peso = PESO_RECHAZO_LOOK if fila["tipo"] == "conjunto_rechazado" else float(datos.get("valor", 0))
         for pid in datos.get("prenda_ids", []):
-            totales[pid] = totales.get(pid, 0) + int(datos.get("valor", 0))
+            totales[pid] = totales.get(pid, 0) + peso
     return totales
 
 
@@ -224,39 +231,69 @@ def rechazar_prenda(sesion_id: str, rechazo: RechazarPrenda):
     return {"sesion_id": sesion_id, "conjuntos": conjuntos}
 
 
+class RechazarConjunto(BaseModel):
+    conjunto_idx: int | None = None  # None = descarta todos los que se están mostrando
+
+
 @router.post("/{sesion_id}/rechazar-conjunto")
-def rechazar_conjunto(sesion_id: str):
+def rechazar_conjunto(sesion_id: str, rechazo: RechazarConjunto | None = None):
+    idx = rechazo.conjunto_idx if rechazo else None
     with db_session() as conn:
         sesion = _cargar_sesion(conn, sesion_id)
-        nuevos_rechazos = sesion["rechazos_count"] + 1
+        conjuntos = json.loads(sesion["conjuntos_json"] or "[]")
+        if idx is not None and not (0 <= idx < len(conjuntos)):
+            raise HTTPException(400, "conjunto_idx fuera de rango")
 
-        if nuevos_rechazos >= 2:
+        descartados = conjuntos if idx is None else [conjuntos[idx]]
+        restantes = [] if idx is None else [c for i, c in enumerate(conjuntos) if i != idx]
+        for c in descartados:
+            registrar_evento(
+                conn,
+                "conjunto_rechazado",
+                sesion_id=sesion_id,
+                payload={"prenda_ids": c["prenda_ids"]},
+            )
+        rechazos = sesion["rechazos_count"] + len(descartados)
+
+        if restantes:
             conn.execute(
-                "UPDATE sesion_recomendacion SET rechazos_count = ?, estado = 'modo_libre' WHERE id = ?",
-                (nuevos_rechazos, sesion_id),
+                "UPDATE sesion_recomendacion SET rechazos_count = ?, conjuntos_json = ? WHERE id = ?",
+                (rechazos, json.dumps(restantes, ensure_ascii=False), sesion_id),
+            )
+            return {"sesion_id": sesion_id, "estado": "en_curso", "conjuntos": restantes}
+
+        # No queda ninguna: se arma un lote nuevo sin repetir lo ya rechazado en esta sesión.
+        previos = conn.execute(
+            "SELECT payload_json FROM evento_log WHERE sesion_id = ? AND tipo = 'conjunto_rechazado'", (sesion_id,)
+        ).fetchall()
+        excluir = [set(json.loads(f["payload_json"] or "{}").get("prenda_ids", [])) for f in previos]
+        preferencias = json.loads(sesion["preferencias_json"]) if sesion.get("preferencias_json") else None
+        resultado = generar_recomendacion(
+            _prendas_disponibles(conn),
+            sesion["ocasion"],
+            sesion["texto_libre"],
+            sesion["modo"],
+            preferencias,
+            excluir,
+        )
+        if not resultado["conjuntos"]:
+            conn.execute(
+                "UPDATE sesion_recomendacion SET rechazos_count = ?, estado = 'modo_libre', conjuntos_json = '[]' WHERE id = ?",
+                (rechazos, sesion_id),
             )
             registrar_evento(conn, "modo_libre_activado", sesion_id=sesion_id)
             return {"sesion_id": sesion_id, "estado": "modo_libre"}
-
-        disponibles = _prendas_disponibles(conn)
-        preferencias = json.loads(sesion["preferencias_json"]) if sesion.get("preferencias_json") else None
-        resultado = generar_recomendacion(
-            disponibles, sesion["ocasion"], sesion["texto_libre"], sesion["modo"], preferencias
-        )
-        if not resultado["conjuntos"]:
-            raise HTTPException(409, "No se pudo armar otro conjunto con el inventario disponible")
 
         conn.execute(
             """UPDATE sesion_recomendacion
                SET rechazos_count = ?, conjuntos_json = ?, clima_json = ?
                WHERE id = ?""",
             (
-                nuevos_rechazos,
+                rechazos,
                 json.dumps(resultado["conjuntos"], ensure_ascii=False),
                 json.dumps(resultado["clima"], ensure_ascii=False),
                 sesion_id,
             ),
         )
-        registrar_evento(conn, "conjunto_rechazado", sesion_id=sesion_id, payload={"rechazos_count": nuevos_rechazos})
 
     return {"sesion_id": sesion_id, "estado": "en_curso", "clima": resultado["clima"], "conjuntos": resultado["conjuntos"]}

@@ -254,6 +254,7 @@ def generar_recomendacion(
     texto_libre: str | None,
     modo: str,
     preferencias: dict | None = None,
+    excluir: list[set[int]] | None = None,
 ) -> dict:
     if modo not in MODOS:
         raise ValueError(f"Modo inválido: {modo}")
@@ -262,6 +263,11 @@ def generar_recomendacion(
     clima = clima_service.obtener_clima_actual()
     prendas = _aplicar_preferencias(prendas_disponibles, preferencias)
     candidatos = _armar_conjuntos_candidatos(prendas, clima["categoria"], ocasion, preferencias)
+    # Looks que la persona ya rechazó en esta sesión: no se vuelven a proponer.
+    if excluir:
+        candidatos = [
+            c for c in candidatos if not any({p["id"] for p in c["piezas"]} <= rechazado for rechazado in excluir)
+        ]
     seleccionados = _seleccionar_diversos(candidatos, cantidad)
     pedido = "; ".join(x for x in [texto_libre or "", describir_preferencias(preferencias)] if x) or None
     razones = _generar_razones(seleccionados, clima, ocasion, pedido)

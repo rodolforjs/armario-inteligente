@@ -72,6 +72,11 @@ export function EspejoApp() {
     return conjuntos.length > 0 ? "mostrando_combinaciones" : "inicio";
   }
 
+  // "Otras opciones" rechaza solo la que se está mostrando; las demás se quedan.
+  function rechazarVisible() {
+    if (conjuntos.length > 0) otrasOpciones(Math.min(seleccion, conjuntos.length - 1));
+  }
+
   function avanzarPaso() {
     if (!confirmado) return;
     setPaso((p) => Math.min(p + 1, confirmado.piezas.length));
@@ -135,7 +140,7 @@ export function EspejoApp() {
           break;
         }
         case "otras_opciones":
-          otrasOpciones();
+          rechazarVisible();
           break;
         case "ver_tienda":
           setPanel("tienda");
@@ -147,9 +152,14 @@ export function EspejoApp() {
     },
   });
 
+  // Al quitar o cambiar una opción se conserva la posición (acotada); un lote nuevo vuelve a la primera.
+  useEffect(() => {
+    setSeleccion((i) => Math.min(i, Math.max(0, conjuntos.length - 1)));
+  }, [conjuntos]);
+
   useEffect(() => {
     setSeleccion(0);
-  }, [conjuntos]);
+  }, [sesionId]);
 
   useEffect(() => {
     setPaso(0);
@@ -173,7 +183,7 @@ export function EspejoApp() {
           aceptar(Math.min(seleccion, conjuntos.length - 1));
         break;
       case "rechazar":
-        if (conjuntos.length > 0) otrasOpciones();
+        rechazarVisible();
         break;
       case "siguiente":
         if (conjuntos.length > 1)
@@ -471,7 +481,7 @@ export function EspejoApp() {
                   >
                     Confirmar
                   </Boton>
-                  <Boton onClick={otrasOpciones} disabled={buscando}>
+                  <Boton onClick={rechazarVisible} disabled={buscando}>
                     Otras opciones
                   </Boton>
                 </div>
@@ -508,7 +518,7 @@ export function EspejoApp() {
               onConfirmar={() =>
                 aceptar(Math.min(seleccion, conjuntos.length - 1))
               }
-              onOtras={otrasOpciones}
+              onOtras={rechazarVisible}
               onCambiar={(id) =>
                 cambiarPrenda(Math.min(seleccion, conjuntos.length - 1), id)
               }

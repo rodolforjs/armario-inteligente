@@ -234,9 +234,11 @@ export const api = {
       body: JSON.stringify({ conjunto_idx: conjuntoIdx, prenda_id: prendaId }),
     }).then(parseOrThrow) as Promise<{ conjuntos: Conjunto[] }>,
 
-  rechazarConjunto: (sesionId: string) =>
+  rechazarConjunto: (sesionId: string, conjuntoIdx?: number) =>
     fetch(`/recomendaciones/${sesionId}/rechazar-conjunto`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conjunto_idx: conjuntoIdx ?? null }),
     }).then(parseOrThrow) as Promise<{
       estado: string;
       clima?: Clima;

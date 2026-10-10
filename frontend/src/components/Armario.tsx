@@ -589,7 +589,7 @@ export function Armario() {
               <Button
                 type="button"
                 variant="secondary"
-                onClick={otrasOpciones}
+                onClick={() => otrasOpciones()}
                 disabled={buscandoCombinaciones}
               >
                 Pedir otras opciones

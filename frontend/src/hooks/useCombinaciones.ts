@@ -84,18 +84,19 @@ export function useCombinaciones() {
     }
   }
 
-  async function otrasOpciones() {
+  // Con un índice rechaza solo esa opción y deja las demás; sin índice descarta todas las que se muestran.
+  async function otrasOpciones(idx?: number) {
     if (!sesionId) return;
     setBuscando(true);
     try {
-      const data = await api.rechazarConjunto(sesionId);
+      const data = await api.rechazarConjunto(sesionId, typeof idx === "number" ? idx : undefined);
       if (data.estado === "modo_libre") {
-        mostrarAviso("Ya van 2 rechazos. Elige tú mismo desde tu armario esta vez.", false);
+        mostrarAviso("Ya no me quedan combinaciones nuevas con lo que hay disponible. Elige tú desde tu armario esta vez.", false);
         setConjuntos([]);
         setSesionId(null);
         return;
       }
-      setClima(data.clima ?? null);
+      if (data.clima) setClima(data.clima);
       setConjuntos(data.conjuntos ?? []);
     } catch (err) {
       mostrarAviso(mensajeAmigable((err as Error).message));
