@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import type { Conjunto } from "@/lib/api";
+import { PiezasLook } from "@/components/PiezasLook";
 import { Boton, Chevron, ETIQUETA, VIDRIO } from "@/components/espejoUi";
 
 // Vista final: la opción se muestra en un panel lateral compacto y el centro del espejo queda libre.
@@ -76,28 +77,11 @@ export function PanelOpcion({
         className={`${VIDRIO} p-3 flex flex-col gap-3 animate-[opcion-entra_300ms_ease-out]`}
         style={{ "--desde": `${direccion * 40}px` } as React.CSSProperties}
       >
-        <div className="flex gap-3">
-          {actual.piezas.map((p) => (
-            <figure key={p.id} className="flex-1 min-w-0 flex flex-col gap-1.5">
-              <img
-                src={p.foto_path}
-                alt={p.tipo}
-                className="w-full h-52 object-cover"
-              />
-              <figcaption className="text-[10px] uppercase tracking-[0.18em] text-white/80 truncate">
-                {p.tipo} · {p.color}
-              </figcaption>
-              <button
-                type="button"
-                onClick={() => onCambiar(p.id)}
-                disabled={buscando}
-                className="self-start text-[10px] uppercase tracking-[0.18em] underline underline-offset-4 text-white/70 hover:text-white disabled:opacity-40"
-              >
-                Cambiar
-              </button>
-            </figure>
-          ))}
-        </div>
+        <PiezasLook
+          piezas={actual.piezas}
+          onCambiar={onCambiar}
+          deshabilitado={buscando}
+        />
         <p className="text-sm font-light italic text-white/85 leading-snug">
           {actual.razon}
         </p>

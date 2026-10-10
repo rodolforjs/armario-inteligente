@@ -4,8 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CameraCapture, type CameraCaptureHandle } from "@/components/CameraCapture";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  CameraCapture,
+  type CameraCaptureHandle,
+} from "@/components/CameraCapture";
 import { DetallePrenda } from "@/components/DetallePrenda";
 import { PantallaExito } from "@/components/PantallaExito";
 import { useAsistenteVoz } from "@/hooks/useAsistenteVoz";
@@ -24,10 +33,21 @@ export function Armario() {
   const [fotoListaParaUsar, setFotoListaParaUsar] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
-  const [atributos, setAtributos] = useState<Atributos>({ tipo: "", color: "", formalidad: "casual", abrigo: "medio" });
-  const [extras, setExtras] = useState({ marca: "", material: "", temporada: "" });
+  const [atributos, setAtributos] = useState<Atributos>({
+    tipo: "",
+    color: "",
+    formalidad: "casual",
+    abrigo: "medio",
+  });
+  const [extras, setExtras] = useState({
+    marca: "",
+    material: "",
+    temporada: "",
+  });
   const cameraRef = useRef<CameraCaptureHandle>(null);
-  const [prendaSeleccionada, setPrendaSeleccionada] = useState<Prenda | null>(null);
+  const [prendaSeleccionada, setPrendaSeleccionada] = useState<Prenda | null>(
+    null,
+  );
 
   const {
     conjuntos,
@@ -58,7 +78,12 @@ export function Armario() {
     setFotoListaParaUsar(false);
     setToken(null);
     setFotoUrl(null);
-    setAtributos({ tipo: "", color: "", formalidad: "casual", abrigo: "medio" });
+    setAtributos({
+      tipo: "",
+      color: "",
+      formalidad: "casual",
+      abrigo: "medio",
+    });
     setExtras({ marca: "", material: "", temporada: "" });
     setMensaje("");
   }
@@ -103,12 +128,20 @@ export function Armario() {
   function etapaActual(): string {
     if (token) return "confirmando_atributos";
     if (modoCaptura === "camara" && fotoListaParaUsar) return "foto_capturada";
-    if (modoCaptura === "camara" || modoCaptura === "archivo") return "camara_abierta";
+    if (modoCaptura === "camara" || modoCaptura === "archivo")
+      return "camara_abierta";
     if (conjuntos.length > 0) return "mostrando_combinaciones";
     return "inicio";
   }
 
-  const { escuchando, transcripcion, respuestaAsistente, alMicrofono, reiniciarHistorial, vozDisponible } = useAsistenteVoz({
+  const {
+    escuchando,
+    transcripcion,
+    respuestaAsistente,
+    alMicrofono,
+    reiniciarHistorial,
+    vozDisponible,
+  } = useAsistenteVoz({
     etapaActual,
     contextoExtra: () => ({
       atributos_detectados: token ? atributos : undefined,
@@ -146,7 +179,9 @@ export function Armario() {
           break;
         case "cambiar_prenda": {
           const tipoBuscado = (resp.parametro || "").toLowerCase();
-          const pieza = conjuntos[0]?.piezas.find((p) => p.tipo.toLowerCase().includes(tipoBuscado));
+          const pieza = conjuntos[0]?.piezas.find((p) =>
+            p.tipo.toLowerCase().includes(tipoBuscado),
+          );
           if (pieza) cambiarPrenda(0, pieza.id);
           break;
         }
@@ -185,19 +220,36 @@ export function Armario() {
                     ? "Escuchando..."
                     : "Toca y habla"}
               </p>
-              {transcripcion && <p className="text-sm">Tú: "{transcripcion}"</p>}
-              {respuestaAsistente && <p className="text-sm text-muted-foreground italic">Asistente: {respuestaAsistente}</p>}
+              {transcripcion && (
+                <p className="text-sm">Tú: "{transcripcion}"</p>
+              )}
+              {respuestaAsistente && (
+                <p className="text-sm text-muted-foreground italic">
+                  Asistente: {respuestaAsistente}
+                </p>
+              )}
             </CardContent>
           </Card>
 
           {/* ---------- Captura ---------- */}
           {modoCaptura === null && !token && (
-            <Button type="button" size="lg" onClick={() => setModoCaptura("camara")} className="w-full">
+            <Button
+              type="button"
+              size="lg"
+              onClick={() => setModoCaptura("camara")}
+              className="w-full"
+            >
               📷 Sacar foto de una prenda
             </Button>
           )}
           {modoCaptura === null && !token && (
-            <Button type="button" size="lg" variant="outline" onClick={() => (window.location.href = "/escaner")} className="w-full">
+            <Button
+              type="button"
+              size="lg"
+              variant="outline"
+              onClick={() => (window.location.href = "/escaner")}
+              className="w-full"
+            >
               🗄️ Escanear el closet
             </Button>
           )}
@@ -216,39 +268,72 @@ export function Armario() {
             <Card>
               <CardContent className="flex flex-col gap-2 pt-4">
                 <p className="text-xs text-muted-foreground">
-                  La cámara en vivo no está disponible en esta conexión (necesita HTTPS). Usa el selector de tu teléfono:
+                  La cámara en vivo no está disponible en esta conexión
+                  (necesita HTTPS). Usa el selector de tu teléfono:
                 </p>
                 <Input
                   type="file"
                   accept="image/*"
                   capture="environment"
-                  onChange={(e) => e.target.files?.[0] && procesarFoto(e.target.files[0])}
+                  onChange={(e) =>
+                    e.target.files?.[0] && procesarFoto(e.target.files[0])
+                  }
                 />
-                <Button type="button" variant="outline" onClick={cerrarCaptura} className="w-fit">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={cerrarCaptura}
+                  className="w-fit"
+                >
                   Cancelar
                 </Button>
               </CardContent>
             </Card>
           )}
 
-          {mensaje && <p className="text-sm text-muted-foreground">{mensaje}</p>}
+          {mensaje && (
+            <p className="text-sm text-muted-foreground">{mensaje}</p>
+          )}
 
           {token && (
             <Card>
               <CardContent className="flex flex-col gap-3 pt-4">
-                {fotoUrl && <img src={fotoUrl} alt="preview" className="w-full max-h-64 object-cover rounded-lg" />}
+                {fotoUrl && (
+                  <img
+                    src={fotoUrl}
+                    alt="preview"
+                    className="w-full max-h-64 object-cover rounded-lg"
+                  />
+                )}
                 <form onSubmit={guardarPrenda} className="flex flex-col gap-3">
                   <div className="flex flex-col gap-1.5">
                     <Label>Tipo</Label>
-                    <Input required value={atributos.tipo} onChange={(e) => setAtributos({ ...atributos, tipo: e.target.value })} />
+                    <Input
+                      required
+                      value={atributos.tipo}
+                      onChange={(e) =>
+                        setAtributos({ ...atributos, tipo: e.target.value })
+                      }
+                    />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Color</Label>
-                    <Input required value={atributos.color} onChange={(e) => setAtributos({ ...atributos, color: e.target.value })} />
+                    <Input
+                      required
+                      value={atributos.color}
+                      onChange={(e) =>
+                        setAtributos({ ...atributos, color: e.target.value })
+                      }
+                    />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Formalidad</Label>
-                    <Select value={atributos.formalidad} onValueChange={(v) => setAtributos({ ...atributos, formalidad: v })}>
+                    <Select
+                      value={atributos.formalidad}
+                      onValueChange={(v) =>
+                        setAtributos({ ...atributos, formalidad: v })
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -261,7 +346,12 @@ export function Armario() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Abrigo</Label>
-                    <Select value={atributos.abrigo} onValueChange={(v) => setAtributos({ ...atributos, abrigo: v })}>
+                    <Select
+                      value={atributos.abrigo}
+                      onValueChange={(v) =>
+                        setAtributos({ ...atributos, abrigo: v })
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -274,24 +364,41 @@ export function Armario() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Marca (opcional)</Label>
-                    <Input value={extras.marca} onChange={(e) => setExtras({ ...extras, marca: e.target.value })} />
+                    <Input
+                      value={extras.marca}
+                      onChange={(e) =>
+                        setExtras({ ...extras, marca: e.target.value })
+                      }
+                    />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Material (opcional)</Label>
                     <Input
                       value={extras.material}
-                      onChange={(e) => setExtras({ ...extras, material: e.target.value })}
+                      onChange={(e) =>
+                        setExtras({ ...extras, material: e.target.value })
+                      }
                       placeholder="ej. algodón, denim, lana"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Temporada (opcional)</Label>
-                    <Select value={extras.temporada || "ninguna"} onValueChange={(v) => setExtras({ ...extras, temporada: v === "ninguna" ? "" : v })}>
+                    <Select
+                      value={extras.temporada || "ninguna"}
+                      onValueChange={(v) =>
+                        setExtras({
+                          ...extras,
+                          temporada: v === "ninguna" ? "" : v,
+                        })
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="— sin especificar —" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="ninguna">— sin especificar —</SelectItem>
+                        <SelectItem value="ninguna">
+                          — sin especificar —
+                        </SelectItem>
                         <SelectItem value="verano">verano</SelectItem>
                         <SelectItem value="invierno">invierno</SelectItem>
                         <SelectItem value="entretiempo">entretiempo</SelectItem>
@@ -300,10 +407,18 @@ export function Armario() {
                     </Select>
                   </div>
                   <div className="flex gap-2">
-                    <Button type="submit" disabled={cargando} className="flex-1">
+                    <Button
+                      type="submit"
+                      disabled={cargando}
+                      className="flex-1"
+                    >
                       Guardar
                     </Button>
-                    <Button type="button" variant="outline" onClick={cerrarCaptura}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={cerrarCaptura}
+                    >
                       Cancelar
                     </Button>
                   </div>
@@ -315,13 +430,23 @@ export function Armario() {
           {/* ---------- Galería ---------- */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h2 className="font-medium text-sm text-muted-foreground">Tu ropa ({prendas.length})</h2>
-              <Button type="button" variant="outline" size="sm" onClick={cargar} disabled={cargando}>
+              <h2 className="font-medium text-sm text-muted-foreground">
+                Tu ropa ({prendas.length})
+              </h2>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={cargar}
+                disabled={cargando}
+              >
                 Refrescar
               </Button>
             </div>
             {prendas.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Aún no has subido ninguna prenda.</p>
+              <p className="text-muted-foreground text-sm">
+                Aún no has subido ninguna prenda.
+              </p>
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 {prendas.map((p) => (
@@ -330,11 +455,18 @@ export function Armario() {
                     className="overflow-hidden cursor-pointer"
                     onClick={() => setPrendaSeleccionada(p)}
                   >
-                    <img src={p.foto_path} alt={p.tipo} className="w-full h-24 object-cover" />
+                    <img
+                      src={p.foto_path}
+                      alt={p.tipo}
+                      className="w-full h-24 object-cover"
+                    />
                     <CardContent className="p-1.5 text-xs">
                       <strong>{p.tipo}</strong>
                       <br />
-                      <Badge variant={p.estado === "disponible" ? "olive" : "yellow"} className="mt-1">
+                      <Badge
+                        variant={p.estado === "disponible" ? "olive" : "yellow"}
+                        className="mt-1"
+                      >
                         {p.estado}
                       </Badge>
                     </CardContent>
@@ -354,7 +486,11 @@ export function Armario() {
             >
               ✨ Ver combinaciones
             </Button>
-            {avisoCombinaciones && <p className="text-sm text-muted-foreground">{avisoCombinaciones}</p>}
+            {avisoCombinaciones && (
+              <p className="text-sm text-muted-foreground">
+                {avisoCombinaciones}
+              </p>
+            )}
             {clima && conjuntos.length > 0 && (
               <p className="text-xs text-muted-foreground">
                 Santiago ahora: {clima.temperatura_c}°C, {clima.categoria}
@@ -366,12 +502,24 @@ export function Armario() {
                 <CardContent className="flex flex-col gap-3 pt-4">
                   <div className="flex gap-2 overflow-x-auto">
                     {c.piezas.map((p) => (
-                      <img key={p.id} src={p.foto_path} alt={p.tipo} className="w-20 h-20 object-cover rounded-lg" />
+                      <img
+                        key={p.id}
+                        src={p.foto_path}
+                        alt={p.tipo}
+                        className="w-20 h-20 object-cover rounded-lg"
+                      />
                     ))}
                   </div>
-                  <p className="italic text-sm text-muted-foreground">{c.razon}</p>
+                  <p className="italic text-sm text-muted-foreground">
+                    {c.razon}
+                  </p>
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" size="sm" onClick={() => aceptar(idx, cargar)} disabled={buscandoCombinaciones}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => aceptar(idx, cargar)}
+                      disabled={buscandoCombinaciones}
+                    >
                       Confirmar
                     </Button>
                     {c.piezas.map((p) => (
@@ -391,7 +539,12 @@ export function Armario() {
               </Card>
             ))}
             {conjuntos.length > 0 && (
-              <Button type="button" variant="secondary" onClick={otrasOpciones} disabled={buscandoCombinaciones}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={otrasOpciones}
+                disabled={buscandoCombinaciones}
+              >
                 Pedir otras opciones
               </Button>
             )}

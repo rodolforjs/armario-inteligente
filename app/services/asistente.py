@@ -81,8 +81,8 @@ Acciones posibles, según la etapa actual de la app (etapa en el contexto):
   trabajo", "matrimonio" -> formal; "ir al gimnasio", "salir a correr" -> deportivo; si no dice nada
   relacionado, deja ocasion en null).
 - confirmar_conjunto: aceptar el conjunto de ropa que se le mostró (etapa "mostrando_combinaciones").
-- cambiar_prenda: pide cambiar una pieza específica del conjunto; en "parametro" pon el tipo de prenda
-  mencionado (ej. "camisa"), basándote en las piezas listadas en el contexto.
+- cambiar_prenda: pide cambiar una pieza específica del conjunto; en "parametro" pon SOLO el tipo de prenda,
+  sin color (ej. "camisa", "pantalón", "zapatos", "reloj"), basándote en las piezas listadas en el contexto.
 - otras_opciones: pedir otro conjunto distinto (etapa "mostrando_combinaciones").
 - responder: conversar sin ejecutar nada en la app. Úsalo para preguntas o comentarios: qué prendas tiene
   ("¿tengo algo azul?", "¿cuántas poleras hay?"), por qué elegiste el look en pantalla ("piezas_conjunto" y

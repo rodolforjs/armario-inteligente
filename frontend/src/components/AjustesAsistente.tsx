@@ -9,7 +9,8 @@ export const TONOS = [
   { id: "breve", etiqueta: "Breve" },
 ];
 
-const CAMPO = "bg-transparent border border-white/40 px-2 py-1.5 text-xs outline-none focus:border-white w-full";
+const CAMPO =
+  "bg-transparent border border-white/40 px-2 py-1.5 text-xs outline-none focus:border-white w-full";
 
 // Personalización del asistente: nombre, tono de la conversación y voz (todo gratis, con las voces del navegador).
 export function AjustesAsistente({
@@ -31,14 +32,17 @@ export function AjustesAsistente({
   oido: string;
   escuchaDisponible: boolean;
 }) {
-  const [voces, setVoces] = useState<SpeechSynthesisVoice[]>(() => vocesEnEspanol());
+  const [voces, setVoces] = useState<SpeechSynthesisVoice[]>(() =>
+    vocesEnEspanol(),
+  );
 
   useEffect(() => {
     if (!("speechSynthesis" in window)) return;
     const actualizar = () => setVoces(vocesEnEspanol());
     actualizar();
     window.speechSynthesis.addEventListener("voiceschanged", actualizar);
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", actualizar);
+    return () =>
+      window.speechSynthesis.removeEventListener("voiceschanged", actualizar);
   }, []);
 
   return (
@@ -51,7 +55,12 @@ export function AjustesAsistente({
         aria-label="Nombre del asistente"
         className={CAMPO}
       />
-      <select value={tono} onChange={(e) => onTono(e.target.value)} aria-label="Tono" className={`${CAMPO} bg-neutral-900`}>
+      <select
+        value={tono}
+        onChange={(e) => onTono(e.target.value)}
+        aria-label="Tono"
+        className={`${CAMPO} bg-neutral-900`}
+      >
         {TONOS.map((t) => (
           <option key={t.id} value={t.id}>
             Tono: {t.etiqueta}
@@ -97,7 +106,9 @@ export function AjustesAsistente({
       </label>
       <button
         type="button"
-        onClick={() => hablar(`Hola, soy ${nombre}. Así sueno.`, undefined, voz)}
+        onClick={() =>
+          hablar(`Hola, soy ${nombre}. Así sueno.`, undefined, voz)
+        }
         className="self-start text-[10px] uppercase tracking-[0.18em] underline underline-offset-4 text-white/80 hover:text-white"
       >
         Probar voz

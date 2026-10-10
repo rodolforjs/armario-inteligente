@@ -35,7 +35,13 @@ export function Boton({
   );
 }
 
-export function Chevron({ lado, onClick }: { lado: "izq" | "der"; onClick: () => void }) {
+export function Chevron({
+  lado,
+  onClick,
+}: {
+  lado: "izq" | "der";
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
@@ -43,16 +49,32 @@ export function Chevron({ lado, onClick }: { lado: "izq" | "der"; onClick: () =>
       aria-label={lado === "izq" ? "Anterior" : "Siguiente"}
       className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white transition-colors"
     >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1"
+      >
         <path d={lado === "izq" ? "M15 4 7 12l8 8" : "m9 4 8 8-8 8"} />
       </svg>
     </button>
   );
 }
 
-export function Flecha({ lado, onClick }: { lado: "izq" | "der"; onClick: () => void }) {
+export function Flecha({
+  lado,
+  onClick,
+}: {
+  lado: "izq" | "der";
+  onClick: () => void;
+}) {
   return (
-    <div className="absolute top-1/2 -translate-y-1/2 z-10" style={lado === "izq" ? { left: 0 } : { right: 0 }}>
+    <div
+      className="absolute top-1/2 -translate-y-1/2 z-10"
+      style={lado === "izq" ? { left: 0 } : { right: 0 }}
+    >
       <Chevron lado={lado} onClick={onClick} />
     </div>
   );

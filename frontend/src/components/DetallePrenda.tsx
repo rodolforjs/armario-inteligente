@@ -4,7 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { api, type Prenda } from "@/lib/api";
 
 export function DetallePrenda({
@@ -60,15 +66,31 @@ export function DetallePrenda({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-40" onClick={onCerrar}>
-      <Card className="max-w-sm w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <img src={prenda.foto_path} alt={prenda.tipo} className="w-full h-56 object-cover" />
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-40"
+      onClick={onCerrar}
+    >
+      <Card
+        className="max-w-sm w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <img
+          src={prenda.foto_path}
+          alt={prenda.tipo}
+          className="w-full h-56 object-cover"
+        />
         <CardContent className="flex flex-col gap-3 pt-4">
           {!editando ? (
             <>
-              <h2 className="text-lg font-semibold capitalize">{prenda.tipo}</h2>
+              <h2 className="text-lg font-semibold capitalize">
+                {prenda.tipo}
+              </h2>
               <div className="flex flex-wrap gap-1.5">
-                <Badge variant={prenda.estado === "disponible" ? "olive" : "yellow"}>{prenda.estado}</Badge>
+                <Badge
+                  variant={prenda.estado === "disponible" ? "olive" : "yellow"}
+                >
+                  {prenda.estado}
+                </Badge>
                 <Badge variant="cream">{prenda.formalidad}</Badge>
                 <Badge variant="blue-soft">{prenda.abrigo}</Badge>
               </div>
@@ -97,12 +119,25 @@ export function DetallePrenda({
               {error && <p className="text-sm text-destructive">{error}</p>}
               {confirmandoBorrado ? (
                 <div className="flex flex-col gap-2">
-                  <p className="text-sm">¿Borrar esta prenda para siempre? No se puede deshacer.</p>
+                  <p className="text-sm">
+                    ¿Borrar esta prenda para siempre? No se puede deshacer.
+                  </p>
                   <div className="flex gap-2">
-                    <Button type="button" variant="danger" onClick={borrar} disabled={guardando} className="flex-1">
+                    <Button
+                      type="button"
+                      variant="danger"
+                      onClick={borrar}
+                      disabled={guardando}
+                      className="flex-1"
+                    >
                       Sí, borrar
                     </Button>
-                    <Button type="button" variant="outline" onClick={() => setConfirmandoBorrado(false)} disabled={guardando}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setConfirmandoBorrado(false)}
+                      disabled={guardando}
+                    >
                       No
                     </Button>
                   </div>
@@ -110,14 +145,23 @@ export function DetallePrenda({
               ) : (
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
-                    <Button type="button" onClick={() => setEditando(true)} className="flex-1">
+                    <Button
+                      type="button"
+                      onClick={() => setEditando(true)}
+                      className="flex-1"
+                    >
                       Editar
                     </Button>
                     <Button type="button" variant="outline" onClick={onCerrar}>
                       Cerrar
                     </Button>
                   </div>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmandoBorrado(true)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConfirmandoBorrado(true)}
+                  >
                     🗑️ Borrar prenda
                   </Button>
                 </div>
@@ -127,15 +171,30 @@ export function DetallePrenda({
             <>
               <div className="flex flex-col gap-1.5">
                 <Label>Tipo</Label>
-                <Input value={valores.tipo} onChange={(e) => setValores({ ...valores, tipo: e.target.value })} />
+                <Input
+                  value={valores.tipo}
+                  onChange={(e) =>
+                    setValores({ ...valores, tipo: e.target.value })
+                  }
+                />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Color</Label>
-                <Input value={valores.color} onChange={(e) => setValores({ ...valores, color: e.target.value })} />
+                <Input
+                  value={valores.color}
+                  onChange={(e) =>
+                    setValores({ ...valores, color: e.target.value })
+                  }
+                />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Formalidad</Label>
-                <Select value={valores.formalidad} onValueChange={(v) => setValores({ ...valores, formalidad: v })}>
+                <Select
+                  value={valores.formalidad}
+                  onValueChange={(v) =>
+                    setValores({ ...valores, formalidad: v })
+                  }
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -148,7 +207,10 @@ export function DetallePrenda({
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Abrigo</Label>
-                <Select value={valores.abrigo} onValueChange={(v) => setValores({ ...valores, abrigo: v })}>
+                <Select
+                  value={valores.abrigo}
+                  onValueChange={(v) => setValores({ ...valores, abrigo: v })}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -163,7 +225,9 @@ export function DetallePrenda({
                 <Label>Marca</Label>
                 <Input
                   value={valores.marca}
-                  onChange={(e) => setValores({ ...valores, marca: e.target.value })}
+                  onChange={(e) =>
+                    setValores({ ...valores, marca: e.target.value })
+                  }
                   placeholder="ej. Nike, sin marca, etc."
                 />
               </div>
@@ -171,13 +235,23 @@ export function DetallePrenda({
                 <Label>Material</Label>
                 <Input
                   value={valores.material}
-                  onChange={(e) => setValores({ ...valores, material: e.target.value })}
+                  onChange={(e) =>
+                    setValores({ ...valores, material: e.target.value })
+                  }
                   placeholder="ej. algodón, denim, lana"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Temporada</Label>
-                <Select value={valores.temporada || "ninguna"} onValueChange={(v) => setValores({ ...valores, temporada: v === "ninguna" ? "" : v })}>
+                <Select
+                  value={valores.temporada || "ninguna"}
+                  onValueChange={(v) =>
+                    setValores({
+                      ...valores,
+                      temporada: v === "ninguna" ? "" : v,
+                    })
+                  }
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="— sin especificar —" />
                   </SelectTrigger>
@@ -192,7 +266,12 @@ export function DetallePrenda({
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Estado</Label>
-                <Select value={valores.estado} onValueChange={(v) => setValores({ ...valores, estado: v as Prenda["estado"] })}>
+                <Select
+                  value={valores.estado}
+                  onValueChange={(v) =>
+                    setValores({ ...valores, estado: v as Prenda["estado"] })
+                  }
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -206,10 +285,19 @@ export function DetallePrenda({
               {error && <p className="text-sm text-destructive">{error}</p>}
 
               <div className="flex gap-2">
-                <Button type="button" onClick={guardar} disabled={guardando} className="flex-1">
+                <Button
+                  type="button"
+                  onClick={guardar}
+                  disabled={guardando}
+                  className="flex-1"
+                >
                   Guardar cambios
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setEditando(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditando(false)}
+                >
                   Cancelar
                 </Button>
               </div>

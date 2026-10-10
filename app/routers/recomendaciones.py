@@ -137,19 +137,27 @@ def rechazar_prenda(sesion_id: str, rechazo: RechazarPrenda):
         if rechazo.prenda_id not in ids_actuales:
             raise HTTPException(400, "Esa prenda no pertenece a ese conjunto")
 
-        ids_ya_usados = {pid for c in conjuntos for pid in c["prenda_ids"]}
+        pieza_a_reemplazar = next(p for p in conjunto["piezas"] if p["id"] == rechazo.prenda_id)
+        tipo_objetivo = pieza_a_reemplazar["tipo"]
+        categoria = _categoria_prenda(tipo_objetivo)
+        es_extra = categoria in ("calzado", "accesorio")
+
+        # Las prendas base no se repiten entre opciones; calzado y accesorios sí pueden repetirse entre opciones.
+        if es_extra:
+            ids_excluidos = set(conjunto["prenda_ids"])
+        else:
+            ids_excluidos = {pid for c in conjuntos for pid in c["prenda_ids"]}
         disponibles = _prendas_disponibles(conn)
-        candidatas = [p for p in disponibles if p["id"] not in ids_ya_usados]
+        candidatas = [p for p in disponibles if p["id"] not in ids_excluidos]
         if sesion.get("preferencias_json"):
             candidatas = _aplicar_preferencias(candidatas, json.loads(sesion["preferencias_json"]))
 
-        pieza_a_reemplazar = next(p for p in conjunto["piezas"] if p["id"] == rechazo.prenda_id)
-        tipo_objetivo = pieza_a_reemplazar["tipo"]
+        # Solo se reemplaza por algo del mismo tipo o, si no hay, de la misma categoría (nunca un pantalón por zapatos).
         reemplazo = next((p for p in candidatas if p["tipo"] == tipo_objetivo), None)
-        reemplazo = reemplazo or next(iter(candidatas), None)
+        reemplazo = reemplazo or next((p for p in candidatas if _categoria_prenda(p["tipo"]) == categoria), None)
 
         if reemplazo is None:
-            raise HTTPException(409, "No queda ninguna prenda disponible para sustituir")
+            raise HTTPException(409, f"No tengo otra prenda disponible como «{tipo_objetivo}» para cambiar.")
 
         reemplazo_pieza = {
             "id": reemplazo["id"],
@@ -158,6 +166,7 @@ def rechazar_prenda(sesion_id: str, rechazo: RechazarPrenda):
             "formalidad": reemplazo["formalidad"],
             "abrigo": reemplazo["abrigo"],
             "foto_path": reemplazo["foto_path"],
+            "rol": pieza_a_reemplazar.get("rol", "base"),
         }
         conjunto["piezas"] = [
             reemplazo_pieza if p["id"] == rechazo.prenda_id else p for p in conjunto["piezas"]

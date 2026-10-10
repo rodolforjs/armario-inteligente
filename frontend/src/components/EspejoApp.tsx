@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { FondoEspejo } from "@/components/FondoEspejo";
+import { PiezasLook } from "@/components/PiezasLook";
 import { PanelConfirmado } from "@/components/PanelConfirmado";
 import { useAsistenteVoz } from "@/hooks/useAsistenteVoz";
 import { useCombinaciones } from "@/hooks/useCombinaciones";
@@ -12,6 +13,13 @@ import type { RespuestaVoz } from "@/lib/api";
 import { PanelInsights } from "@/components/PanelInsights";
 import { PanelOpcion } from "@/components/PanelOpcion";
 import { Boton, ETIQUETA, Flecha, VIDRIO } from "@/components/espejoUi";
+
+const normalizar = (t: string) =>
+  t
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 
 const CARD_PX = 460;
 const GAP_PX = 40;
@@ -98,10 +106,14 @@ export function EspejoApp() {
           reiniciarHistorial();
           break;
         case "cambiar_prenda": {
-          const tipoBuscado = (resp.parametro || "").toLowerCase();
-          const pieza = conjuntos[idx]?.piezas.find((p) =>
-            p.tipo.toLowerCase().includes(tipoBuscado),
-          );
+          const buscado = normalizar(resp.parametro || "");
+          const pieza = conjuntos[idx]?.piezas.find((p) => {
+            const tipo = normalizar(p.tipo);
+            return (
+              buscado !== "" &&
+              (buscado.includes(tipo) || tipo.includes(buscado))
+            );
+          });
           if (pieza) cambiarPrenda(idx, pieza.id);
           break;
         }
@@ -373,23 +385,7 @@ export function EspejoApp() {
                             : "opacity-40 scale-95"
                         }`}
                       >
-                        <div className="flex gap-3 flex-1 min-h-0">
-                          {c.piezas.map((p) => (
-                            <figure
-                              key={p.id}
-                              className="flex-1 min-w-0 flex flex-col gap-1.5"
-                            >
-                              <img
-                                src={p.foto_path}
-                                alt={p.tipo}
-                                className="w-full flex-1 min-h-0 object-cover"
-                              />
-                              <figcaption className="text-[10px] uppercase tracking-[0.18em] text-white/80 truncate">
-                                {p.tipo} · {p.color}
-                              </figcaption>
-                            </figure>
-                          ))}
-                        </div>
+                        <PiezasLook piezas={c.piezas} llenar />
                         <p className="text-sm font-light italic text-white/85 leading-snug line-clamp-3">
                           {c.razon}
                         </p>

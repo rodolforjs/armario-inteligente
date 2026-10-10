@@ -28,6 +28,7 @@ export type PiezaConjunto = {
   formalidad: string;
   abrigo: string;
   foto_path: string;
+  rol?: "base" | "extra";
 };
 
 export type Conjunto = {

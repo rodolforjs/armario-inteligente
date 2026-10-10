@@ -1,4 +1,10 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { Button } from "@/components/ui/button";
 
 export type CameraCaptureHandle = {
@@ -15,7 +21,10 @@ export const CameraCapture = forwardRef<
     onUnavailable: () => void;
     onEstadoFoto?: (hayFoto: boolean) => void;
   }
->(function CameraCapture({ onCapture, onCancel, onUnavailable, onEstadoFoto }, ref) {
+>(function CameraCapture(
+  { onCapture, onCancel, onUnavailable, onEstadoFoto },
+  ref,
+) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -68,7 +77,9 @@ export const CameraCapture = forwardRef<
     canvas.toBlob(
       (blob) => {
         if (!blob) return;
-        onCapture(new File([blob], `prenda-${Date.now()}.jpg`, { type: "image/jpeg" }));
+        onCapture(
+          new File([blob], `prenda-${Date.now()}.jpg`, { type: "image/jpeg" }),
+        );
       },
       "image/jpeg",
       0.9,
@@ -80,8 +91,22 @@ export const CameraCapture = forwardRef<
   return (
     <div className="flex flex-col gap-3">
       <div className="relative w-full aspect-[3/4] bg-black rounded-lg overflow-hidden">
-        {!foto && <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />}
-        {foto && <img src={foto} alt="captura" className="w-full h-full object-cover" />}
+        {!foto && (
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-cover"
+          />
+        )}
+        {foto && (
+          <img
+            src={foto}
+            alt="captura"
+            className="w-full h-full object-cover"
+          />
+        )}
       </div>
       <canvas ref={canvasRef} className="hidden" />
       <div className="flex gap-2">

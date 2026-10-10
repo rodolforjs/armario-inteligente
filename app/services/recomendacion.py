@@ -17,6 +17,12 @@ MODOS = {
 SUPERIOR_KEYWORDS = ["camisa", "polera", "poleron", "chaqueta", "sweater", "blusa", "camiseta", "chomba"]
 INFERIOR_KEYWORDS = ["pantalon", "falda", "short", "jean", "jeans", "bermuda"]
 COMPLETO_KEYWORDS = ["vestido", "enterito", "jumpsuit", "mono"]
+CALZADO_KEYWORDS = ["zapato", "zapatilla", "bota", "botin", "sandalia", "mocasin", "calzado", "chalas"]
+ACCESORIO_KEYWORDS = [
+    "reloj", "collar", "pulsera", "anillo", "arete", "gorro", "gorra", "bufanda", "lente", "cinturon",
+    "corbata", "panuelo", "mochila", "bolso", "guante", "sombrero", "pañuelo",
+]
+MAX_ACCESORIOS = 2
 
 ABRIGO_POR_CLIMA = {
     "frio": ["abrigado", "medio"],
@@ -41,6 +47,10 @@ def _categoria_prenda(tipo: str) -> str:
         return "superior"
     if any(k in tipo_norm for k in INFERIOR_KEYWORDS):
         return "inferior"
+    if any(k in tipo_norm for k in CALZADO_KEYWORDS):
+        return "calzado"
+    if any(k in tipo_norm for k in ACCESORIO_KEYWORDS):
+        return "accesorio"
     return "otro"
 
 
@@ -106,10 +116,48 @@ def _score_prenda(prenda: dict, clima_categoria: str, ocasion: str | None, prefe
     return score
 
 
+def _colores_chocan(a: str, b: str) -> bool:
+    pares = {("negro", "marron"), ("marron", "negro"), ("negro", "cafe"), ("cafe", "negro")}
+    return (_normalizar(a).split(" ")[0], _normalizar(b).split(" ")[0]) in pares
+
+
+def _elegir_extras(
+    nucleo: list[dict], calzados: list[dict], accesorios: list[dict], clima_categoria: str, ocasion: str | None,
+    preferencias: dict | None,
+) -> list[dict]:
+    """Suma al conjunto un calzado y hasta dos accesorios (de tipos distintos) que calcen con las prendas base."""
+    formalidades = {_normalizar(p["formalidad"]) for p in nucleo}
+    inferiores = [p for p in nucleo if _categoria_prenda(p["tipo"]) == "inferior"]
+
+    def puntaje(p: dict) -> float:
+        score = _score_prenda(p, clima_categoria, ocasion, preferencias)
+        if _normalizar(p["formalidad"]) in formalidades:
+            score += 1.5
+        if any(_colores_chocan(p["color"], i["color"]) for i in inferiores):
+            score -= 2.0
+        return score
+
+    extras: list[dict] = []
+    if calzados:
+        extras.append(max(calzados, key=puntaje))
+    tipos_vistos: set[str] = set()
+    for acc in sorted(accesorios, key=puntaje, reverse=True):
+        tipo = _normalizar(acc["tipo"])
+        if tipo in tipos_vistos:
+            continue
+        tipos_vistos.add(tipo)
+        extras.append(acc)
+        if len(tipos_vistos) == MAX_ACCESORIOS:
+            break
+    return extras
+
+
 def _armar_conjuntos_candidatos(prendas: list[dict], clima_categoria: str, ocasion: str | None, preferencias: dict | None = None):
     superiores = [p for p in prendas if _categoria_prenda(p["tipo"]) == "superior"]
     inferiores = [p for p in prendas if _categoria_prenda(p["tipo"]) == "inferior"]
     completos = [p for p in prendas if _categoria_prenda(p["tipo"]) == "completo"]
+    calzados = [p for p in prendas if _categoria_prenda(p["tipo"]) == "calzado"]
+    accesorios = [p for p in prendas if _categoria_prenda(p["tipo"]) == "accesorio"]
 
     candidatos = []
     for sup, inf in product(superiores, inferiores):
@@ -120,6 +168,8 @@ def _armar_conjuntos_candidatos(prendas: list[dict], clima_categoria: str, ocasi
         piezas = [comp]
         score = sum(_score_prenda(p, clima_categoria, ocasion, preferencias) for p in piezas)
         candidatos.append({"piezas": piezas, "score": score})
+    for c in candidatos:
+        c["extras"] = _elegir_extras(c["piezas"], calzados, accesorios, clima_categoria, ocasion, preferencias)
 
     candidatos.sort(key=lambda c: c["score"], reverse=True)
     return candidatos
@@ -151,7 +201,7 @@ def _generar_razones(conjuntos: list[dict], clima: dict, ocasion: str | None, te
         return []
     resumen = []
     for idx, c in enumerate(conjuntos):
-        piezas_desc = ", ".join(f"{p['tipo']} {p['color']} ({p['formalidad']}, abrigo {p['abrigo']})" for p in c["piezas"])
+        piezas_desc = ", ".join(f"{p['tipo']} {p['color']} ({p['formalidad']}, abrigo {p['abrigo']})" for p in c["piezas"] + c.get("extras", []))
         resumen.append({"indice": idx, "piezas": piezas_desc})
 
     prompt = (
@@ -218,7 +268,7 @@ def generar_recomendacion(
     for c, razon in zip(seleccionados, razones):
         conjuntos.append(
             {
-                "prenda_ids": [p["id"] for p in c["piezas"]],
+                "prenda_ids": [p["id"] for p in c["piezas"] + c.get("extras", [])],
                 "piezas": [
                     {
                         "id": p["id"],
@@ -227,8 +277,10 @@ def generar_recomendacion(
                         "formalidad": p["formalidad"],
                         "abrigo": p["abrigo"],
                         "foto_path": p["foto_path"],
+                        "rol": rol,
                     }
-                    for p in c["piezas"]
+                    for rol, grupo in (("base", c["piezas"]), ("extra", c.get("extras", [])))
+                    for p in grupo
                 ],
                 "score": round(c["score"], 2),
                 "razon": razon,
